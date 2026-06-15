@@ -551,104 +551,24 @@ function visualLabel(label, kind) {
   return label.slice(0, limit) + "...";
 }
 
-// --- Holographic particle shapes ---
-function drawHoloHex(ctx, x, y, r, rot) {
-  ctx.beginPath();
-  for (var i = 0; i < 6; i++) {
-    var a = rot + i * Math.PI / 3;
-    var px = x + Math.cos(a) * r;
-    var py = y + Math.sin(a) * r;
-    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-}
-
-function drawHoloStar(ctx, x, y, r, rot) {
-  ctx.beginPath();
-  for (var i = 0; i < 8; i++) {
-    var a = rot + i * Math.PI / 4;
-    var or = i % 2 === 0 ? r : r * 0.42;
-    var px = x + Math.cos(a) * or;
-    var py = y + Math.sin(a) * or;
-    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-}
-
-function drawHoloDiamond(ctx, x, y, r, rot) {
-  var cos = Math.cos(rot);
-  var sin = Math.sin(rot);
-  // Pre-rotated diamond points
-  var t = r; var h = r * 0.55;
-  var pts = [[0, -t], [h, 0], [0, t], [-h, 0]];
-  ctx.beginPath();
-  for (var d = 0; d < 4; d++) {
-    var rx = pts[d][0] * cos - pts[d][1] * sin;
-    var ry = pts[d][0] * sin + pts[d][1] * cos;
-    d === 0 ? ctx.moveTo(x + rx, y + ry) : ctx.lineTo(x + rx, y + ry);
-  }
-  ctx.closePath();
-}
-
-function drawHoloPentagon(ctx, x, y, r, rot) {
-  ctx.beginPath();
-  for (var i = 0; i < 5; i++) {
-    var a = rot + i * Math.PI * 2 / 5 - Math.PI / 2;
-    var px = x + Math.cos(a) * r;
-    var py = y + Math.sin(a) * r;
-    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-}
-
 function drawHoloNode(ctx, node, r, time, zoom) {
   var kind = node.kind;
-  var rot = time * 0.3 + node.phase;
   var isBig = zoom > 1.2;
 
-  if (kind === "ambient") {
-    // Tiny ambient: simple circle
-    ctx.beginPath();
-    ctx.arc(node.px, node.py, r * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-    return;
-  }
-
-  // Draw shape
-  if (kind === "core") {
-    drawHoloHex(ctx, node.px, node.py, r, rot);
-  } else if (kind === "agent") {
-    drawHoloStar(ctx, node.px, node.py, r, rot);
-  } else if (kind === "memory") {
-    drawHoloDiamond(ctx, node.px, node.py, r, rot + node.phase * 0.5);
-  } else if (kind === "thread") {
-    drawHoloPentagon(ctx, node.px, node.py, r, rot);
-  } else if (kind === "write") {
-    // Triangle
-    ctx.beginPath();
-    for (var wi = 0; wi < 3; wi++) {
-      var wa = rot + wi * Math.PI * 2 / 3 - Math.PI / 2;
-      var wpx = node.px + Math.cos(wa) * r;
-      var wpy = node.py + Math.sin(wa) * r;
-      wi === 0 ? ctx.moveTo(wpx, wpy) : ctx.lineTo(wpx, wpy);
-    }
-    ctx.closePath();
-  } else {
-    ctx.beginPath();
-    ctx.arc(node.px, node.py, r, 0, Math.PI * 2);
-  }
-
-  ctx.stroke();
+  // All nodes: simple circle
+  ctx.beginPath();
+  ctx.arc(node.px, node.py, r * (kind === "ambient" ? 0.5 : 1), 0, Math.PI * 2);
   ctx.fill();
+  if (kind !== "ambient") ctx.stroke();
 
-  // Inner detail ring (visible when zoomed in)
+  // Inner ring (zoomed in)
   if (isBig && kind !== "ambient") {
     ctx.beginPath();
-    ctx.arc(node.px, node.py, r * 0.35, 0, Math.PI * 2);
+    ctx.arc(node.px, node.py, r * 0.3, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  // Label (visible when zoomed in)
+  // Label (zoomed in)
   if (isBig && node.label && kind !== "memory") {
     ctx.fillStyle = "rgba(255, 240, 210, 0.85)";
     ctx.font = "700 10px Inter, system-ui, sans-serif";
