@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ClaraVision</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar" aria-label="ClaraVision status">
+        <section class="brand-block">
+          <p class="eyebrow">ClaraCore 可视化客户端</p>
+          <h1>ClaraVision</h1>
+        </section>
+        <section class="status-strip" aria-label="system summary">
+          <article>
+            <span class="label">共同记忆</span>
+            <strong id="memory-count">0</strong>
+          </article>
+          <article>
+            <span class="label">当前位置</span>
+            <strong id="thread-count">0</strong>
+          </article>
+          <article>
+            <span class="label">接入 Agent</span>
+            <strong id="agent-name">Codex</strong>
+          </article>
+        </section>
+      </header>
+
+      <section class="workspace">
+        <aside class="panel focus-panel" aria-label="current focus">
+          <div class="panel-heading">
+            <p class="eyebrow">当前焦点</p>
+            <span id="focus-state" class="pill">active</span>
+          </div>
+          <h2 id="focus-title">ClaraVision 圆形脑核</h2>
+          <p id="focus-summary" class="summary"></p>
+          <dl class="facts" id="focus-facts"></dl>
+        </aside>
+
+        <section class="brain-stage" aria-label="agent brain view">
+          <div class="stage-header">
+            <div>
+              <p class="eyebrow">神经场</p>
+              <h2>圆形脑核信号流</h2>
+            </div>
+            <button id="refresh-button" class="icon-button" type="button" aria-label="刷新视觉状态" title="刷新">
+              <span aria-hidden="true">↻</span>
+            </button>
+          </div>
+          <div class="neural-stage">
+            <canvas id="neural-canvas" aria-label="animated neural signal field"></canvas>
+            <div class="neural-readout" aria-label="signal summary">
+              <span><b id="signal-count">0</b> 条信号</span>
+              <span><b id="node-count">0</b> 个神经元</span>
+              <span><b id="link-count">0</b> 条连接</span>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel activity-panel" aria-label="activity">
+          <div class="panel-heading">
+            <p class="eyebrow">活动流</p>
+            <span id="mode-label" class="pill accent">演示</span>
+          </div>
+          <ol id="activity-list" class="activity-list"></ol>
+        </aside>
+      </section>
+
+      <section class="lower-grid">
+        <section class="panel" aria-label="memoria facts">
+          <div class="panel-heading">
+            <p class="eyebrow">Memoria</p>
+            <span class="label">共同事实</span>
+          </div>
+          <div id="memory-list" class="item-list"></div>
+        </section>
+
+        <section class="panel" aria-label="continuity threads">
+          <div class="panel-heading">
+            <p class="eyebrow">Continuity</p>
+            <span class="label">当前继续位置</span>
+          </div>
+          <div id="thread-list" class="item-list"></div>
+        </section>
+
+        <section class="panel" aria-label="reality lines">
+          <div class="panel-heading">
+            <p class="eyebrow">共同线</p>
+            <span class="label">现实连续性</span>
+          </div>
+          <div id="reality-list" class="item-list compact"></div>
+        </section>
+
+        <section class="panel" aria-label="agents">
+          <div class="panel-heading">
+            <p class="eyebrow">Agent 接入</p>
+            <span class="label">可接入对象</span>
+          </div>
+          <div id="agent-list" class="item-list compact"></div>
+        </section>
+
+        <section class="panel" aria-label="data sources">
+          <div class="panel-heading">
+            <p class="eyebrow">数据来源</p>
+            <span class="label">当前接入</span>
+          </div>
+          <div id="source-list" class="item-list compact"></div>
+        </section>
+
+        <section class="panel" aria-label="write backs">
+          <div class="panel-heading">
+            <p class="eyebrow">写回</p>
+            <span class="label">最近变化</span>
+          </div>
+          <div id="writeback-list" class="item-list compact"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
