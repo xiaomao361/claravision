@@ -256,355 +256,516 @@ function renderActivity() {
   });
 }
 
+function seeded(label) {
+  let hash = 0;
+  for (let index = 0; index < label.length; index += 1) {
+    hash = (hash * 31 + label.charCodeAt(index)) % 9973;
+  }
+  return hash / 9973;
+}
+
+function memoryRichness(memory) {
+  const tagWeight = (memory.tags?.length || 1) * 0.3;
+  const bodyWeight = Math.min(1, (memory.body?.length || 0) / 200) * 0.5;
+  const sourceWeight = { clara: 0.9, lara: 0.85, codex: 0.8, hermes: 0.75 };
+  return 0.4 + tagWeight + bodyWeight + (sourceWeight[memory.sourceAgent] || 0.5) * 0.3;
+}
+
+function agentMemoryCount(agentId, memories) {
+  return memories.filter(function (m) { return m.sourceAgent === agentId; }).length;
+}
+
+function agentColorFor(sourceAgent) {
+  var map = {
+    clara: [244, 241, 232],
+    lara: [255, 182, 193],
+    codex: [84, 227, 221],
+    hermes: [198, 145, 255]
+  };
+  return map[sourceAgent] || [149, 134, 255];
+}
+
 function buildNeuralScene(nextState) {
-  const nodes = [];
-  const links = [];
-  const pulses = [];
-  const seeded = (label) => {
-    let hash = 0;
-    for (let index = 0; index < label.length; index += 1) {
-      hash = (hash * 31 + label.charCodeAt(index)) % 9973;
-    }
-    return hash / 9973;
+  var nodes = [];
+  var links = [];
+  var pulses = [];
+  var signalEvents = [];
+
+  var addNode = function (node) {
+    nodes.push(Object.assign({ vx: 0, vy: 0, phase: seeded(node.id || node.label) * Math.PI * 2 }, node));
   };
 
-  const addNode = (node) => {
-    nodes.push({
-      vx: 0,
-      vy: 0,
-      phase: seeded(node.id || node.label) * Math.PI * 2,
-      ...node
-    });
+  var ringPoint = function (angle, radius) {
+    return { x: 0.5 + Math.cos(angle) * radius, y: 0.5 + Math.sin(angle) * radius };
   };
 
-  addNode({ id: "core", label: "ClaraCore", kind: "agent", x: 0.5, y: 0.5, size: 6.4, energy: 1 });
+  addNode({ id: "core", label: "ClaraCore", kind: "core", x: 0.5, y: 0.5, size: 7.2, energy: 1, sourceAgent: "core" });
 
-  const ringPoint = (angle, radius) => ({
-    x: 0.5 + Math.cos(angle) * radius,
-    y: 0.5 + Math.sin(angle) * radius
-  });
-
-  nextState.agents.forEach((agent, index) => {
-    const angle = -Math.PI / 2 + index * ((Math.PI * 2) / Math.max(1, nextState.agents.length));
-    const point = ringPoint(angle, 0.2);
+  // --- Agent ring (inner) ---
+  var agents = nextState.agents || [];
+  agents.forEach(function (agent, index) {
+    var count = agentMemoryCount(agent.id, nextState.memories);
+    var angle = -Math.PI / 2 + index * ((Math.PI * 2) / Math.max(1, agents.length));
+    var point = ringPoint(angle, 0.18);
+    var sig = Math.min(1, count / 80);
     addNode({
-      id: agent.id,
-      label: agent.title,
-      kind: "agent",
-      x: point.x,
-      y: point.y,
-      size: 4.7,
-      energy: agent.tags?.includes("demo") ? 0.95 : 0.72
+      id: agent.id, label: agent.title, kind: "agent",
+      x: point.x, y: point.y,
+      size: 3.8 + sig * 3.2,
+      energy: 0.6 + sig * 0.4,
+      sourceAgent: agent.id,
+      signalCount: count
     });
   });
 
-  nextState.memories.slice(0, 220).forEach((memory, index) => {
-    const total = Math.max(1, Math.min(nextState.memories.length, 220));
-    const angle = (index / total) * Math.PI * 2 + seeded(memory.id) * 0.08;
-    const radius = 0.24 + seeded(`${memory.id}-radius`) * 0.18;
-    const point = ringPoint(angle, radius);
+  // --- Thread ring (mid) ---
+  var threads = nextState.threads || [];
+  threads.forEach(function (thread, index) {
+    var angle = -0.24 + index * 0.42;
+    var point = ringPoint(angle, 0.27);
+    var isActive = thread.status === "active";
     addNode({
-      id: memory.id,
-      label: index < 4 ? memory.title : "",
-      kind: "memory",
-      x: point.x,
-      y: point.y,
-      size: 1.7 + seeded(memory.title) * 2.2,
-      energy: 0.48 + seeded(memory.id) * 0.36
+      id: thread.id, label: thread.title, kind: "thread",
+      x: point.x, y: point.y,
+      size: isActive ? 4.8 : 3.2,
+      energy: isActive ? 0.95 : 0.48,
+      threadStatus: thread.status,
+      agentId: thread.agentId
     });
   });
 
-  nextState.threads.forEach((thread, index) => {
-    const angle = -0.16 + index * 0.36;
-    const point = ringPoint(angle, 0.29);
+  // --- Memory ring (outer, clustered by sourceAgent) ---
+  var memories = (nextState.memories || []).slice(0, 180);
+  var sourceOrder = ["clara", "hermes", "codex", "lara"];
+  var clusters = {};
+  sourceOrder.forEach(function (s) { clusters[s] = []; });
+  memories.forEach(function (m) {
+    var key = clusters[m.sourceAgent] ? m.sourceAgent : "codex";
+    if (!clusters[key]) clusters[key] = [];
+    clusters[key].push(m);
+  });
+
+  var clusterIndex = 0;
+  Object.keys(clusters).forEach(function (source) {
+    var list = clusters[source];
+    var arcStart = clusterIndex * ((Math.PI * 2) / Math.max(1, Object.keys(clusters).length));
+    var arcSpan = (Math.PI * 1.8) / Math.max(1, Object.keys(clusters).length);
+    list.forEach(function (memory, idx) {
+      var angle = arcStart + (idx / Math.max(1, list.length)) * arcSpan;
+      var radius = 0.26 + seeded(memory.id) * 0.16;
+      var point = ringPoint(angle, radius);
+      var richness = memoryRichness(memory);
+      addNode({
+        id: memory.id,
+        label: idx < 3 ? memory.title : "",
+        kind: "memory",
+        x: point.x, y: point.y,
+        size: 1.6 + richness * 2.6,
+        energy: 0.38 + richness * 0.42,
+        sourceAgent: memory.sourceAgent,
+        tags: memory.tags
+      });
+    });
+    clusterIndex += 1;
+  });
+
+  // --- Writeback nodes ---
+  (nextState.writebacks || []).forEach(function (write, index) {
+    var angle = Math.PI * 0.5 + index * 0.38;
+    var point = ringPoint(angle, 0.3);
     addNode({
-      id: thread.id,
-      label: thread.title,
-      kind: "thread",
-      x: point.x,
-      y: point.y,
-      size: 4.1,
-      energy: thread.status === "active" ? 0.95 : 0.58
+      id: "write-" + index, label: write.title, kind: "write",
+      x: point.x, y: point.y,
+      size: 3.6, energy: 0.85
     });
   });
 
-  nextState.dataSources.forEach((source, index) => {
-    const angle = -Math.PI * 0.82 + index * 0.28;
-    const point = ringPoint(angle, 0.34);
+  // --- Data source nodes ---
+  (nextState.dataSources || []).forEach(function (source, index) {
+    var angle = -Math.PI * 0.78 + index * 0.3;
+    var point = ringPoint(angle, 0.35);
     addNode({
-      id: source.id,
-      label: source.title,
-      kind: "source",
-      x: point.x,
-      y: point.y,
-      size: 2.9,
-      energy: source.id === "demo" ? 0.88 : 0.55
+      id: source.id, label: source.title, kind: "source",
+      x: point.x, y: point.y,
+      size: 2.4, energy: source.id === "demo" ? 0.88 : 0.5
     });
   });
 
-  nextState.realityLines.forEach((line, index) => {
-    const angle = Math.PI * 1.16 + index * 0.22;
-    const point = ringPoint(angle, 0.2);
+  // --- Reality line nodes ---
+  (nextState.realityLines || []).forEach(function (line, index) {
+    var angle = Math.PI * 1.2 + index * 0.25;
+    var point = ringPoint(angle, 0.21);
     addNode({
-      id: `line-${line.id}`,
-      label: line.title,
-      kind: "line",
-      x: point.x,
-      y: point.y,
-      size: 3.7,
-      energy: 0.9
+      id: "line-" + line.id, label: line.title, kind: "line",
+      x: point.x, y: point.y,
+      size: 3.5, energy: 0.88
     });
   });
 
-  nextState.writebacks.forEach((write, index) => {
-    const angle = Math.PI * 0.5 + index * 0.34;
-    const point = ringPoint(angle, 0.27);
-    addNode({
-      id: `write-${index}`,
-      label: write.title,
-      kind: "write",
-      x: point.x,
-      y: point.y,
-      size: 3.4,
-      energy: 0.8
+  // --- Data-driven links ---
+  var core = nodes.find(function (n) { return n.id === "core"; });
+  var agentNodes = nodes.filter(function (n) { return n.kind === "agent"; });
+  var memoryNodes = nodes.filter(function (n) { return n.kind === "memory"; });
+  var threadNodes = nodes.filter(function (n) { return n.kind === "thread"; });
+
+  // Core → all agents
+  agentNodes.forEach(function (agent) {
+    links.push({ a: core, b: agent, heat: 0.8, kind: "core-agent" });
+  });
+
+  // Agent → their memories (up to 15 per agent)
+  agentNodes.forEach(function (agent) {
+    var owned = memoryNodes.filter(function (m) { return m.sourceAgent === agent.id; }).slice(0, 15);
+    owned.forEach(function (mem) {
+      links.push({ a: agent, b: mem, heat: 0.35 + seeded(mem.id) * 0.2, kind: "agent-memory" });
     });
   });
 
-  const core = nodes.find((node) => node.id === "core");
-  nodes.forEach((node) => {
-    if (node !== core && node.kind !== "ambient" && node.kind !== "memory") {
-      links.push({ a: core, b: node, heat: node.kind === "write" ? 0.95 : 0.65 });
+  // Agent → their threads
+  agentNodes.forEach(function (agent) {
+    threadNodes.filter(function (t) { return t.agentId === agent.id; }).slice(0, 5).forEach(function (thread) {
+      links.push({ a: agent, b: thread, heat: thread.threadStatus === "active" ? 0.7 : 0.4, kind: "agent-thread" });
+    });
+  });
+
+  // Memory → Memory (same sourceAgent, nearby)
+  for (var mi = 0; mi < Math.min(memoryNodes.length, 120); mi += 1) {
+    for (var mj = mi + 1; mj < Math.min(memoryNodes.length, 120); mj += 1) {
+      if (memoryNodes[mi].sourceAgent === memoryNodes[mj].sourceAgent && seeded(memoryNodes[mi].id + memoryNodes[mj].id) > 0.88) {
+        links.push({ a: memoryNodes[mi], b: memoryNodes[mj], heat: 0.22, kind: "memory-memory" });
+      }
+    }
+  }
+
+  // Writebacks → core (high heat)
+  nodes.filter(function (n) { return n.kind === "write"; }).forEach(function (w) {
+    links.push({ a: w, b: core, heat: 0.88, kind: "write-core" });
+  });
+
+  // --- Signal events from activity and writebacks ---
+  var activity = nextState.activity || [];
+  var writebacks = nextState.writebacks || [];
+
+  // Each writeback → signal burst from periphery to core
+  writebacks.forEach(function (wb, wbi) {
+    var sourceNode = nodes.find(function (n) { return n.kind === "write" && n.id === "write-" + wbi; }) || core;
+    for (var s = 0; s < 3; s += 1) {
+      signalEvents.push({
+        from: sourceNode, to: core,
+        startTime: (s * 0.33) % 1,
+        speed: 0.002 + seeded(wb.title + s) * 0.003,
+        color: "coral",
+        size: 2.8,
+        lifetime: 1
+      });
     }
   });
 
-  nextState.agents.forEach((agent, index) => {
-    const agentNode = nodes.find((node) => node.id === agent.id);
-    const memoryNode = nodes.find((node) => node.kind === "memory" && nodes.indexOf(node) % Math.max(2, index + 2) === 0);
-    const threadNode = nodes.find((node) => node.kind === "thread" && index % 2 === 1);
-    if (agentNode && memoryNode) links.push({ a: agentNode, b: memoryNode, heat: 0.48 });
-    if (agentNode && threadNode) links.push({ a: agentNode, b: threadNode, heat: 0.5 });
-  });
-
-  nextState.memories.slice(0, 36).forEach((memory, index) => {
-    const memoryNode = nodes.find((node) => node.id === memory.id);
-    const threadNode = nodes.find((node) => node.kind === "thread" && index % 2 === 0) || core;
-    if (memoryNode && threadNode !== core) links.push({ a: memoryNode, b: threadNode, heat: 0.45 });
-  });
-
-  links.forEach((link, index) => {
-    pulses.push({
-      link,
-      t: (index * 0.17) % 1,
-      speed: 0.003 + seeded(`${link.a.id}-${link.b.id}`) * 0.004,
-      color: link.b.kind === "write" ? "coral" : link.b.kind === "thread" ? "gold" : "cyan"
+  // Each activity → signal pulse through agent field
+  activity.forEach(function (act, ai) {
+    var isWrite = act[2] === "write";
+    var srcAgent = agentNodes[ai % agentNodes.length] || core;
+    signalEvents.push({
+      from: srcAgent, to: core,
+      startTime: (ai * 0.22) % 1,
+      speed: 0.0025 + seeded(act[0]) * 0.003,
+      color: isWrite ? "coral" : "cyan",
+      size: isWrite ? 3.2 : 2.2,
+      lifetime: 1.4,
+      label: act[0]
     });
   });
 
-  const targetParticleCount = Math.min(360, 80 + nextState.memories.length);
+  // Memory recall simulation — random memory nodes fire toward core
+  memoryNodes.slice(0, 30).forEach(function (mem, mi) {
+    signalEvents.push({
+      from: mem, to: core,
+      startTime: (mi * 0.14 + 0.35) % 1,
+      speed: 0.0018 + seeded(mem.id) * 0.0025,
+      color: "cyan",
+      size: 2.0,
+      lifetime: 0.8
+    });
+  });
+
+  // --- Ambient background particles ---
+  var targetParticleCount = Math.min(280, 60 + (nextState.memories || []).length);
   while (nodes.length < targetParticleCount) {
-    const id = `ambient-${nodes.length}`;
-    const ring = seeded(id);
-    const angle = seeded(`${id}-angle`) * Math.PI * 2;
-    const radius = 0.12 + seeded(`${id}-radius`) * 0.34;
-    const point = ringPoint(angle, radius);
+    var ambId = "ambient-" + nodes.length;
+    var ring = seeded(ambId);
+    var ambAngle = seeded(ambId + "-angle") * Math.PI * 2;
+    var ambRadius = 0.08 + seeded(ambId + "-radius") * 0.38;
+    var ambPoint = ringPoint(ambAngle, ambRadius);
     addNode({
-      id,
-      label: "",
-      kind: "ambient",
-      x: point.x,
-      y: point.y,
-      size: 1.4 + ring * 1.6,
-      energy: 0.25 + ring * 0.35
+      id: ambId, label: "", kind: "ambient",
+      x: ambPoint.x, y: ambPoint.y,
+      size: 1.1 + ring * 1.4,
+      energy: 0.18 + ring * 0.28
     });
   }
 
-  return { nodes, links, pulses, frame: 0, memoryCount: nextState.memories.length };
+  return { nodes: nodes, links: links, pulses: pulses, signalEvents: signalEvents, frame: 0, memoryCount: (nextState.memories || []).length };
 }
 
-function colorFor(kind, alpha = 1) {
-  const colors = {
-    agent: `rgba(244, 241, 232, ${alpha})`,
-    memory: `rgba(84, 227, 221, ${alpha})`,
-    thread: `rgba(227, 182, 80, ${alpha})`,
-    write: `rgba(255, 122, 99, ${alpha})`,
-    source: `rgba(127, 211, 107, ${alpha})`,
-    line: `rgba(198, 145, 255, ${alpha})`,
-    ambient: `rgba(149, 134, 255, ${alpha})`,
-    cyan: `rgba(84, 227, 221, ${alpha})`,
-    gold: `rgba(227, 182, 80, ${alpha})`,
-    coral: `rgba(255, 122, 99, ${alpha})`
+// --- Color system ---
+var AGENT_COLORS = {
+  clara: [244, 241, 232],
+  lara: [255, 182, 193],
+  codex: [84, 227, 221],
+  hermes: [198, 145, 255]
+};
+
+function colorFor(kind, alpha) {
+  if (alpha === undefined) alpha = 1;
+  var map = {
+    core: "rgba(244, 241, 232, " + alpha + ")",
+    agent: "rgba(244, 241, 232, " + alpha + ")",
+    memory: "rgba(84, 227, 221, " + alpha + ")",
+    thread: "rgba(227, 182, 80, " + alpha + ")",
+    write: "rgba(255, 122, 99, " + alpha + ")",
+    source: "rgba(127, 211, 107, " + alpha + ")",
+    line: "rgba(198, 145, 255, " + alpha + ")",
+    ambient: "rgba(149, 134, 255, " + alpha + ")",
+    cyan: "rgba(84, 227, 221, " + alpha + ")",
+    gold: "rgba(227, 182, 80, " + alpha + ")",
+    coral: "rgba(255, 122, 99, " + alpha + ")"
   };
-  return colors[kind] || colors.agent;
+  return map[kind] || map.agent;
+}
+
+function sourceAgentRGB(sourceAgent) {
+  return AGENT_COLORS[sourceAgent] || [149, 134, 255];
 }
 
 function visualLabel(label, kind) {
-  const limit = kind === "agent" ? 10 : 8;
+  var limit = kind === "agent" ? 10 : 8;
   if (!label || label.length <= limit) return label || "";
-  return `${label.slice(0, limit)}...`;
+  return label.slice(0, limit) + "...";
 }
 
+// --- Brain shell renderer ---
 function drawBrainShell(ctx, width, height, time) {
-  const centerX = width * 0.5;
-  const centerY = height * 0.5;
-  const radius = Math.min(width, height) * 0.4;
-  const pulse = 1 + Math.sin(time * 1.2) * 0.025;
+  var cx = width * 0.5;
+  var cy = height * 0.5;
+  var r = Math.min(width, height) * 0.42;
+  var pulse = 1 + Math.sin(time * 0.9) * 0.018 + Math.sin(time * 2.1) * 0.012;
 
   ctx.save();
-  ctx.translate(centerX, centerY);
+  ctx.translate(cx, cy);
   ctx.scale(pulse, pulse);
 
-  const glow = ctx.createRadialGradient(0, 0, radius * 0.05, 0, 0, radius);
-  glow.addColorStop(0, "rgba(84, 227, 221, 0.12)");
-  glow.addColorStop(0.56, "rgba(149, 134, 255, 0.055)");
-  glow.addColorStop(1, "rgba(84, 227, 221, 0)");
-  ctx.fillStyle = glow;
+  // Rotating nebula
+  var nebulaAngle = time * 0.08;
+  ctx.save();
+  ctx.rotate(nebulaAngle);
+  var nebula = ctx.createRadialGradient(0, 0, r * 0.02, 0, 0, r * 1.3);
+  nebula.addColorStop(0, "rgba(84, 227, 221, 0.1)");
+  nebula.addColorStop(0.35, "rgba(149, 134, 255, 0.05)");
+  nebula.addColorStop(0.65, "rgba(255, 122, 99, 0.03)");
+  nebula.addColorStop(1, "rgba(5, 7, 10, 0)");
+  ctx.fillStyle = nebula;
   ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.arc(0, 0, r * 1.3, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 
-  ctx.strokeStyle = "rgba(84, 227, 221, 0.22)";
-  ctx.lineWidth = 1.2;
+  // Outer ring
+  ctx.strokeStyle = "rgba(84, 227, 221, 0.18)";
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(244, 241, 232, 0.08)";
-  ctx.lineWidth = 1;
-  for (let i = -2; i <= 2; i += 1) {
+  // Inner ghost ring
+  ctx.strokeStyle = "rgba(149, 134, 255, 0.1)";
+  ctx.lineWidth = 0.6;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Elliptical orbits
+  ctx.strokeStyle = "rgba(244, 241, 232, 0.06)";
+  ctx.lineWidth = 0.8;
+  for (var i = -2; i <= 2; i += 1) {
     ctx.beginPath();
-    ctx.ellipse(i * radius * 0.14, 0, radius * (0.42 - Math.abs(i) * 0.045), radius * 0.92, 0, 0, Math.PI * 2);
+    ctx.ellipse(i * r * 0.14, 0, r * (0.44 - Math.abs(i) * 0.04), r * 0.9, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
 
+  // Center vertical curve
   ctx.beginPath();
-  ctx.moveTo(0, -radius * 0.9);
-  ctx.bezierCurveTo(radius * 0.12, -radius * 0.4, -radius * 0.12, radius * 0.35, 0, radius * 0.9);
+  ctx.moveTo(0, -r * 0.85);
+  ctx.bezierCurveTo(r * 0.1, -r * 0.35, -r * 0.1, r * 0.35, 0, r * 0.85);
   ctx.stroke();
+
   ctx.restore();
 }
 
+// --- Main neural field render ---
 function drawNeuralField() {
-  const canvas = $("#neural-canvas");
+  var canvas = $("#neural-canvas");
   if (!canvas || !neuralScene) return;
 
-  const rect = canvas.getBoundingClientRect();
-  const scale = window.devicePixelRatio || 1;
-  const width = Math.max(1, Math.floor(rect.width));
-  const height = Math.max(1, Math.floor(rect.height));
+  var rect = canvas.getBoundingClientRect();
+  var scale = window.devicePixelRatio || 1;
+  var width = Math.max(1, Math.floor(rect.width));
+  var height = Math.max(1, Math.floor(rect.height));
 
   if (canvas.width !== width * scale || canvas.height !== height * scale) {
     canvas.width = width * scale;
     canvas.height = height * scale;
   }
 
-  const ctx = canvas.getContext("2d");
+  var ctx = canvas.getContext("2d");
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.clearRect(0, 0, width, height);
 
   neuralScene.frame += 1;
-  const time = neuralScene.frame * 0.012;
+  var time = neuralScene.frame * 0.012;
+  var fieldSize = Math.min(width, height);
 
-  ctx.fillStyle = "rgba(5, 7, 10, 0.36)";
+  ctx.fillStyle = "rgba(5, 7, 10, 0.32)";
   ctx.fillRect(0, 0, width, height);
   drawBrainShell(ctx, width, height, time);
 
-  const points = neuralScene.nodes.map((node) => {
-    const swayX = Math.sin(time + node.phase) * (node.kind === "ambient" ? 10 : 5);
-    const swayY = Math.cos(time * 0.8 + node.phase) * (node.kind === "ambient" ? 8 : 4);
-    return {
-      ...node,
-      px: width * 0.5 + (node.x - 0.5) * Math.min(width, height) + swayX,
-      py: height * 0.5 + (node.y - 0.5) * Math.min(width, height) + swayY
-    };
+  // Project nodes to screen
+  var points = neuralScene.nodes.map(function (node) {
+    var swayMul = node.kind === "ambient" ? 8 : 3.5;
+    var swayMulY = node.kind === "ambient" ? 6 : 3;
+    return Object.assign({}, node, {
+      px: width * 0.5 + (node.x - 0.5) * fieldSize + Math.sin(time + node.phase) * swayMul,
+      py: height * 0.5 + (node.y - 0.5) * fieldSize + Math.cos(time * 0.8 + node.phase) * swayMulY
+    });
   });
 
-  const byId = new Map(points.map((point) => [point.id, point]));
+  var byId = new Map();
+  points.forEach(function (p) { byId.set(p.id, p); });
 
-  for (let i = 0; i < points.length; i += 1) {
-    for (let j = i + 1; j < points.length; j += 1) {
-      const a = points[i];
-      const b = points[j];
-      const distance = Math.hypot(a.px - b.px, a.py - b.py);
-      const threshold = a.kind === "ambient" && b.kind === "ambient" ? 92 : 150;
-      if (distance < threshold) {
-        const alpha = (1 - distance / threshold) * 0.038 * (a.energy + b.energy);
-        ctx.strokeStyle = colorFor(a.kind === "ambient" ? b.kind : a.kind, alpha);
-        ctx.lineWidth = 0.42;
+  // --- Proximity field lines (ambient↔ambient only) ---
+  for (var pi = 0; pi < points.length; pi += 1) {
+    for (var pj = pi + 1; pj < points.length; pj += 1) {
+      var pa = points[pi];
+      var pb = points[pj];
+      if (pa.kind !== "ambient" || pb.kind !== "ambient") continue;
+      var dist = Math.hypot(pa.px - pb.px, pa.py - pb.py);
+      if (dist < 80) {
+        var palpha = (1 - dist / 80) * 0.025 * (pa.energy + pb.energy);
+        ctx.strokeStyle = colorFor("ambient", palpha);
+        ctx.lineWidth = 0.35;
         ctx.beginPath();
-        ctx.moveTo(a.px, a.py);
-        ctx.lineTo(b.px, b.py);
+        ctx.moveTo(pa.px, pa.py);
+        ctx.lineTo(pb.px, pb.py);
         ctx.stroke();
       }
     }
   }
 
-  neuralScene.links.forEach((link) => {
-    const a = byId.get(link.a.id);
-    const b = byId.get(link.b.id);
+  // --- Structural links ---
+  neuralScene.links.forEach(function (link) {
+    var a = byId.get(link.a.id);
+    var b = byId.get(link.b.id);
     if (!a || !b) return;
-    const gradient = ctx.createLinearGradient(a.px, a.py, b.px, b.py);
-    gradient.addColorStop(0, colorFor(a.kind, 0.035 + link.heat * 0.06));
-    gradient.addColorStop(1, colorFor(b.kind, 0.04 + link.heat * 0.07));
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 0.22 + link.heat * 0.24;
+    var heatPulse = 1 + Math.sin(time * 1.8 + seeded(link.a.id + link.b.id) * Math.PI * 2) * 0.2;
+    var h = link.heat * heatPulse;
+    var grad = ctx.createLinearGradient(a.px, a.py, b.px, b.py);
+    grad.addColorStop(0, colorFor(a.kind, 0.03 + h * 0.07));
+    grad.addColorStop(1, colorFor(b.kind, 0.03 + h * 0.07));
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 0.18 + h * 0.28;
     ctx.beginPath();
     ctx.moveTo(a.px, a.py);
     ctx.lineTo(b.px, b.py);
     ctx.stroke();
   });
 
-  neuralScene.pulses.forEach((pulse) => {
-    const a = byId.get(pulse.link.a.id);
-    const b = byId.get(pulse.link.b.id);
-    if (!a || !b) return;
-    pulse.t = (pulse.t + pulse.speed) % 1;
-    const x = a.px + (b.px - a.px) * pulse.t;
-    const y = a.py + (b.py - a.py) * pulse.t;
-    const dx = b.px - a.px;
-    const dy = b.py - a.py;
-    const length = Math.max(1, Math.hypot(dx, dy));
-    const nx = -dy / length;
-    const ny = dx / length;
-    for (let i = 0; i < 7; i += 1) {
-      const lag = (pulse.t - i * 0.018 + 1) % 1;
-      const jitter = Math.sin(time * 9 + i + pulse.t * 12) * 8;
-      const dustX = a.px + dx * lag + nx * jitter;
-      const dustY = a.py + dy * lag + ny * jitter;
-      ctx.shadowBlur = 18;
-      ctx.shadowColor = colorFor(pulse.color, 0.7);
-      ctx.fillStyle = colorFor(pulse.color, 0.18 + (7 - i) * 0.06);
+  // --- Signal events (activity/writeback driven) ---
+  neuralScene.signalEvents.forEach(function (evt) {
+    evt.t = ((evt.t || evt.startTime) + evt.speed) % evt.lifetime;
+    var fromP = byId.get(evt.from.id);
+    var toP = byId.get(evt.to.id);
+    if (!fromP || !toP) return;
+    var ax = fromP.px + (toP.px - fromP.px) * (evt.t / evt.lifetime);
+    var ay = fromP.py + (toP.py - fromP.py) * (evt.t / evt.lifetime);
+    var dx = toP.px - fromP.px;
+    var dy = toP.py - fromP.py;
+    var len = Math.max(1, Math.hypot(dx, dy));
+    var nx = -dy / len;
+    var ny = dx / len;
+
+    // Trail particles
+    for (var ti = 0; ti < 5; ti += 1) {
+      var lag = (evt.t / evt.lifetime - ti * 0.025);
+      if (lag < 0) continue;
+      var tx = fromP.px + dx * lag + nx * Math.sin(time * 14 + ti) * 6;
+      var ty = fromP.py + dy * lag + ny * Math.cos(time * 14 + ti) * 6;
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = colorFor(evt.color, 0.65);
+      ctx.fillStyle = colorFor(evt.color, 0.14 + (5 - ti) * 0.05);
       ctx.beginPath();
-      ctx.arc(dustX, dustY, Math.max(1.1, 3.2 - i * 0.28), 0, Math.PI * 2);
+      ctx.arc(tx, ty, Math.max(0.9, 2.6 - ti * 0.3), 0, Math.PI * 2);
       ctx.fill();
     }
-    const glow = 9 + Math.sin(time * 8 + pulse.t) * 2;
-    ctx.shadowBlur = 26;
-    ctx.shadowColor = colorFor(pulse.color, 0.9);
-    ctx.fillStyle = colorFor(pulse.color, 0.95);
+
+    // Signal head
+    ctx.shadowBlur = 28;
+    ctx.shadowColor = colorFor(evt.color, 0.92);
+    ctx.fillStyle = colorFor(evt.color, 0.9);
     ctx.beginPath();
-    ctx.arc(x, y, glow * 0.34, 0, Math.PI * 2);
+    ctx.arc(ax, ay, evt.size * 0.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
   });
 
-  points.forEach((node) => {
-    const pulse = 1 + Math.sin(time * 2 + node.phase) * 0.18;
-    const radius = node.size * pulse;
-    ctx.shadowBlur = node.kind === "ambient" ? 8 : 24;
-    ctx.shadowColor = colorFor(node.kind, 0.8);
-    ctx.fillStyle = colorFor(node.kind, node.kind === "ambient" ? 0.6 : 0.96);
+  // --- Render nodes (layered: halo → core → label) ---
+  points.forEach(function (node) {
+    var breath = 1 +
+      Math.sin(time * 1.7 + node.phase) * 0.12 +
+      Math.sin(time * 3.4 + node.phase * 1.7) * 0.07 +
+      Math.sin(time * 5.1 + node.phase * 2.3) * 0.04;
+    var r = node.size * breath;
+    var isCore = node.kind === "core";
+    var isAmbient = node.kind === "ambient";
+
+    // Outer halo
+    var haloAlpha = isAmbient ? 0.15 : isCore ? 0.35 : 0.22;
+    ctx.shadowBlur = isAmbient ? 6 : isCore ? 42 : 22;
+    ctx.shadowColor = colorFor(node.kind, haloAlpha);
+    ctx.fillStyle = colorFor(node.kind, haloAlpha * 0.5);
     ctx.beginPath();
-    ctx.arc(node.px, node.py, radius, 0, Math.PI * 2);
+    ctx.arc(node.px, node.py, r * 1.8, 0, Math.PI * 2);
     ctx.fill();
+
+    // Inner bright core
+    var coreAlpha = isAmbient ? 0.45 : isCore ? 1 : 0.92;
+    ctx.shadowBlur = isAmbient ? 4 : isCore ? 36 : 16;
+    ctx.shadowColor = colorFor(node.kind, coreAlpha);
+    ctx.fillStyle = colorFor(node.kind, coreAlpha);
+    ctx.beginPath();
+    ctx.arc(node.px, node.py, r * (isCore ? 0.65 : 0.55), 0, Math.PI * 2);
+    ctx.fill();
+
+    // Memory-specific: colored by sourceAgent
+    if (node.kind === "memory" && node.sourceAgent) {
+      var srgb = sourceAgentRGB(node.sourceAgent);
+      var memGlow = "rgba(" + srgb[0] + "," + srgb[1] + "," + srgb[2] + ",0.4)";
+      var memFill = "rgba(" + srgb[0] + "," + srgb[1] + "," + srgb[2] + ",0.85)";
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = memGlow;
+      ctx.fillStyle = memFill;
+      ctx.beginPath();
+      ctx.arc(node.px, node.py, r * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.shadowBlur = 0;
 
-    if (node.label && node.kind !== "ambient" && node.kind !== "memory") {
-      const labelOffset = node.kind === "write" ? -14 : radius + 18;
-      const labelText = visualLabel(node.label, node.kind);
-      ctx.fillStyle = "rgba(244, 241, 232, 0.82)";
-      ctx.font = "700 12px Inter, system-ui, sans-serif";
+    // Label
+    if (node.label && !isAmbient && node.kind !== "memory") {
+      var labelY = node.kind === "write" ? -r - 12 : r + 16;
+      ctx.fillStyle = "rgba(244, 241, 232, 0.78)";
+      ctx.font = "700 11px Inter, system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(labelText, node.px, node.py + labelOffset);
+      ctx.fillText(visualLabel(node.label, node.kind), node.px, node.py + labelY);
     }
   });
 
@@ -613,7 +774,7 @@ function drawNeuralField() {
 
 function renderNeuralField() {
   neuralScene = buildNeuralScene(state);
-  setText("#signal-count", neuralScene.pulses.length);
+  setText("#signal-count", neuralScene.signalEvents.length);
   setText("#node-count", neuralScene.nodes.length);
   setText("#link-count", neuralScene.links.length);
 }
