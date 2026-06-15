@@ -454,7 +454,7 @@ function buildNeuralScene(nextState) {
         from: sourceNode, to: core,
         startTime: (s * 0.33) % 1,
         speed: 0.002 + seeded(wb.title + s) * 0.003,
-        color: "coral",
+        color: "warm",
         size: 2.8,
         lifetime: 1
       });
@@ -469,7 +469,7 @@ function buildNeuralScene(nextState) {
       from: srcAgent, to: core,
       startTime: (ai * 0.22) % 1,
       speed: 0.0025 + seeded(act[0]) * 0.003,
-      color: isWrite ? "coral" : "cyan",
+      color: isWrite ? "warm" : "amber",
       size: isWrite ? 3.2 : 2.2,
       lifetime: 1.4,
       label: act[0]
@@ -482,7 +482,7 @@ function buildNeuralScene(nextState) {
       from: mem, to: core,
       startTime: (mi * 0.14 + 0.35) % 1,
       speed: 0.0018 + seeded(mem.id) * 0.0025,
-      color: "cyan",
+      color: "gold",
       size: 2.0,
       lifetime: 0.8
     });
@@ -507,34 +507,35 @@ function buildNeuralScene(nextState) {
   return { nodes: nodes, links: links, pulses: pulses, signalEvents: signalEvents, frame: 0, memoryCount: (nextState.memories || []).length };
 }
 
-// --- Color system ---
+// --- Color system (Jarvis warm palette) ---
 var AGENT_COLORS = {
-  clara: [244, 241, 232],
-  lara: [255, 182, 193],
-  codex: [84, 227, 221],
-  hermes: [198, 145, 255]
+  clara: [255, 235, 200],
+  lara: [255, 190, 170],
+  codex: [255, 190, 100],
+  hermes: [220, 170, 255]
 };
 
 function colorFor(kind, alpha) {
   if (alpha === undefined) alpha = 1;
   var map = {
-    core: "rgba(244, 241, 232, " + alpha + ")",
-    agent: "rgba(244, 241, 232, " + alpha + ")",
-    memory: "rgba(84, 227, 221, " + alpha + ")",
+    core: "rgba(255, 230, 180, " + alpha + ")",
+    agent: "rgba(255, 235, 200, " + alpha + ")",
+    memory: "rgba(240, 176, 80, " + alpha + ")",
     thread: "rgba(227, 182, 80, " + alpha + ")",
-    write: "rgba(255, 122, 99, " + alpha + ")",
-    source: "rgba(127, 211, 107, " + alpha + ")",
-    line: "rgba(198, 145, 255, " + alpha + ")",
-    ambient: "rgba(149, 134, 255, " + alpha + ")",
-    cyan: "rgba(84, 227, 221, " + alpha + ")",
+    write: "rgba(255, 130, 80, " + alpha + ")",
+    source: "rgba(180, 210, 120, " + alpha + ")",
+    line: "rgba(210, 160, 255, " + alpha + ")",
+    ambient: "rgba(200, 150, 80, " + alpha + ")",
+    amber: "rgba(240, 176, 80, " + alpha + ")",
     gold: "rgba(227, 182, 80, " + alpha + ")",
-    coral: "rgba(255, 122, 99, " + alpha + ")"
+    coral: "rgba(255, 120, 70, " + alpha + ")",
+    warm: "rgba(232, 148, 74, " + alpha + ")"
   };
   return map[kind] || map.agent;
 }
 
 function sourceAgentRGB(sourceAgent) {
-  return AGENT_COLORS[sourceAgent] || [149, 134, 255];
+  return AGENT_COLORS[sourceAgent] || [200, 150, 80];
 }
 
 function visualLabel(label, kind) {
@@ -543,7 +544,7 @@ function visualLabel(label, kind) {
   return label.slice(0, limit) + "...";
 }
 
-// --- Brain shell renderer ---
+// --- Brain shell renderer (Jarvis warm) ---
 function drawBrainShell(ctx, width, height, time) {
   var cx = width * 0.5;
   var cy = height * 0.5;
@@ -554,15 +555,15 @@ function drawBrainShell(ctx, width, height, time) {
   ctx.translate(cx, cy);
   ctx.scale(pulse, pulse);
 
-  // Rotating nebula
-  var nebulaAngle = time * 0.08;
+  // Rotating nebula — warm amber
+  var nebulaAngle = time * 0.06;
   ctx.save();
   ctx.rotate(nebulaAngle);
   var nebula = ctx.createRadialGradient(0, 0, r * 0.02, 0, 0, r * 1.3);
-  nebula.addColorStop(0, "rgba(84, 227, 221, 0.1)");
-  nebula.addColorStop(0.35, "rgba(149, 134, 255, 0.05)");
-  nebula.addColorStop(0.65, "rgba(255, 122, 99, 0.03)");
-  nebula.addColorStop(1, "rgba(5, 7, 10, 0)");
+  nebula.addColorStop(0, "rgba(240, 176, 80, 0.1)");
+  nebula.addColorStop(0.3, "rgba(232, 148, 74, 0.05)");
+  nebula.addColorStop(0.6, "rgba(255, 180, 100, 0.025)");
+  nebula.addColorStop(1, "rgba(6, 5, 3, 0)");
   ctx.fillStyle = nebula;
   ctx.beginPath();
   ctx.arc(0, 0, r * 1.3, 0, Math.PI * 2);
@@ -570,21 +571,21 @@ function drawBrainShell(ctx, width, height, time) {
   ctx.restore();
 
   // Outer ring
-  ctx.strokeStyle = "rgba(84, 227, 221, 0.18)";
+  ctx.strokeStyle = "rgba(240, 176, 80, 0.16)";
   ctx.lineWidth = 1.4;
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.stroke();
 
   // Inner ghost ring
-  ctx.strokeStyle = "rgba(149, 134, 255, 0.1)";
+  ctx.strokeStyle = "rgba(232, 148, 74, 0.08)";
   ctx.lineWidth = 0.6;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2);
   ctx.stroke();
 
   // Elliptical orbits
-  ctx.strokeStyle = "rgba(244, 241, 232, 0.06)";
+  ctx.strokeStyle = "rgba(244, 241, 232, 0.05)";
   ctx.lineWidth = 0.8;
   for (var i = -2; i <= 2; i += 1) {
     ctx.beginPath();
@@ -624,9 +625,25 @@ function drawNeuralField() {
   var time = neuralScene.frame * 0.012;
   var fieldSize = Math.min(width, height);
 
-  ctx.fillStyle = "rgba(5, 7, 10, 0.32)";
+  ctx.fillStyle = "rgba(5, 5, 3, 0.3)";
   ctx.fillRect(0, 0, width, height);
   drawBrainShell(ctx, width, height, time);
+
+  // --- Think pulse: expanding ring from core ---
+  var thinkPeriod = 140;
+  var thinkPhase = (neuralScene.frame % thinkPeriod) / thinkPeriod;
+  if (thinkPhase < 0.55) {
+    var thinkR = thinkPhase * fieldSize * 0.48;
+    var thinkAlpha = (1 - thinkPhase / 0.55) * 0.18;
+    var thinkGrad = ctx.createRadialGradient(width * 0.5, height * 0.5, thinkR * 0.7, width * 0.5, height * 0.5, thinkR);
+    thinkGrad.addColorStop(0, "rgba(240, 176, 80, 0)");
+    thinkGrad.addColorStop(0.75, "rgba(240, 176, 80, " + (thinkAlpha * 0.6) + ")");
+    thinkGrad.addColorStop(1, "rgba(240, 176, 80, 0)");
+    ctx.fillStyle = thinkGrad;
+    ctx.beginPath();
+    ctx.arc(width * 0.5, height * 0.5, thinkR, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Project nodes to screen
   var points = neuralScene.nodes.map(function (node) {

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "mode": "snapshot",
   "agent": "Clara / Lara / Codex",
-  "memoriaTotal": 580,
-  "generatedAt": "2026-06-15T09:25:30.991649+00:00",
+  "memoriaTotal": 582,
+  "generatedAt": "2026-06-15T09:48:14.432196+00:00",
   "agents": [
     {
       "id": "clara",
@@ -46,7 +46,7 @@
     {
       "id": "memoria",
       "title": "Memoria",
-      "body": "读取到 220 条记忆；库内共有 580 条。",
+      "body": "读取到 220 条记忆；库内共有 582 条。",
       "tags": [
         "真实快照"
       ]
@@ -75,7 +75,7 @@
     "facts": [
       [
         "数据来源",
-        "当前来自 Memoria recall 和 Continuity list 的只读快照；Memoria 库内共有 580 条。"
+        "当前来自 Memoria recall 和 Continuity list 的只读快照；Memoria 库内共有 582 条。"
       ],
       [
         "共同线",
@@ -109,6 +109,16 @@
       "sourceAgent": "clara"
     },
     {
+      "id": "a9800fd6-7a46-4350-9413-add4bb5f7248",
+      "title": "2026-06-15 ClaraVision 项目初始化。Code...",
+      "body": "2026-06-15 ClaraVision 项目初始化。Codex写了第一版：Canvas神经场粒子动画 + Memoria/Continuity真实快照。Clara接手继续开发。Git仓库已初始化，数据获取和页面展示已分离：bui...",
+      "tags": [
+        "clara",
+        "fact"
+      ],
+      "sourceAgent": "clara"
+    },
+    {
       "id": "eceaf74c-53c0-4aea-91a8-b1547935f74f",
       "title": "0614（周日）毛仔跟Codex聊时突然冒出的想法：基于Memor...",
       "body": "0614（周日）毛仔跟Codex聊时突然冒出的想法：基于Memoria和Continuity做一个可视化界面，类似Jarvis效果的agent大脑展示层。 上下文：Memoria管\"记住什么\"，Continuity管\"怎么接上\"，上面...",
@@ -127,6 +137,16 @@
         "technical_note"
       ],
       "sourceAgent": "codex"
+    },
+    {
+      "id": "781f7ba0-eb28-49bd-9cfb-c5832955245f",
+      "title": "Clara 写入 Memoria 时固定使用 --source c...",
+      "body": "Clara 写入 Memoria 时固定使用 --source clara --source-agent clara。这是2026-06-05用户明确要求记下的配置。",
+      "tags": [
+        "clara",
+        "fact"
+      ],
+      "sourceAgent": "clara"
     },
     {
       "id": "e09e8915-7bca-4ced-aa0f-60cc0bad8b74",
@@ -265,6 +285,16 @@
       "tags": [
         "clara",
         "project_state"
+      ],
+      "sourceAgent": "clara"
+    },
+    {
+      "id": "8b3c9e92-5235-4095-b3aa-3f0b9bfb5f0d",
+      "title": "2026-06-15 毛仔后续方向：1）ClaraVision神经...",
+      "body": "2026-06-15 毛仔后续方向：1）ClaraVision神经元粒子图要更好看 2）神经信号要更真实——不是纯装饰动画，信号脉冲要对应Memoria/Continuity的真实数据变化。",
+      "tags": [
+        "clara",
+        "fact"
       ],
       "sourceAgent": "clara"
     },
@@ -1059,16 +1089,6 @@
       "sourceAgent": "clara"
     },
     {
-      "id": "5c03dbea-bbf8-4050-8839-def96555159b",
-      "title": "Memoria server 启动 bug 修复（2026-05-...",
-      "body": "Memoria server 启动 bug 修复（2026-05-25）：FastAPI 0.115.5 + Starlette 1.1.0 不兼容（Starlette 1.1.0 移除 on_startup 支持），升级 FastA...",
-      "tags": [
-        "clara",
-        "technical_note"
-      ],
-      "sourceAgent": "clara"
-    },
-    {
       "id": "5e2c2a43-e30f-470f-875c-21cf609e4a19",
       "title": "NightRaven项目测试完成✓，与Iris合计继续下一步操作。",
       "body": "NightRaven项目测试完成✓，与Iris合计继续下一步操作。",
@@ -1669,26 +1689,6 @@
       "sourceAgent": "clara"
     },
     {
-      "id": "61b5cae7-47fa-4d94-aaaf-ad3aa5ed9ed8",
-      "title": "把日报和周报相关的任务删除吧。 太占用资源了。 相关的配置也可以移除了。",
-      "body": "## 摘要 把日报和周报相关的任务删除吧。 太占用资源了。 相关的配置也可以移除了。 ## 背景 从旧 Memoria 系统迁移（原文件：webchat_把日报和周报相关的任务删除吧。 太占用资源了。 相关的配置也_6af45f68....",
-      "tags": [
-        "clara",
-        "technical_note"
-      ],
-      "sourceAgent": "clara"
-    },
-    {
-      "id": "0e36ec0c-61af-43f7-ae59-709ec1733d68",
-      "title": "2026-04-28 项目状态更新：1) Kraken优化R4-R...",
-      "body": "2026-04-28 项目状态更新：1) Kraken优化R4-R6正在推进，Clara和毛仔在别的窗口一起开发；2) 胖狗散文已投稿✓；3) 本地模型（qwen2.5-7b Q4量化）还在跟Iris测试，有问题待解决；4) 金刚经进...",
-      "tags": [
-        "clara",
-        "project_state"
-      ],
-      "sourceAgent": "clara"
-    },
-    {
       "id": "4322b799-5191-4763-9fa2-4422e917e865",
       "title": "2026-06-15 毛仔问Loop Engineering是什么...",
       "body": "2026-06-15 毛仔问Loop Engineering是什么。了解了核心概念：Boris Cherny提出'不再直接prompt Claude，写loop让loop去prompt'。范式演进：Prompt Eng→Context...",
@@ -1999,16 +1999,6 @@
       "sourceAgent": "clara"
     },
     {
-      "id": "781f7ba0-eb28-49bd-9cfb-c5832955245f",
-      "title": "Clara 写入 Memoria 时固定使用 --source c...",
-      "body": "Clara 写入 Memoria 时固定使用 --source clara --source-agent clara。这是2026-06-05用户明确要求记下的配置。",
-      "tags": [
-        "clara",
-        "fact"
-      ],
-      "sourceAgent": "clara"
-    },
-    {
       "id": "faef93e5-cd5a-4f10-ada9-b4e2c34639de",
       "title": "家里的Iris从QClaw迁移到Hermes了",
       "body": "家里的Iris从QClaw迁移到Hermes了",
@@ -2082,6 +2072,16 @@
       "id": "f49c1697-8127-4900-8540-f72fabb9bc88",
       "title": "SearXNG + Ollama 联网搜索配置完成（2026-05...",
       "body": "SearXNG + Ollama 联网搜索配置完成（2026-05-25）。内网服务器(192.168.3.200:8811)部署 SearXNG，修复了 bind_address(127.0.0.1→0.0.0.0)、formats...",
+      "tags": [
+        "clara",
+        "technical_note"
+      ],
+      "sourceAgent": "clara"
+    },
+    {
+      "id": "5c03dbea-bbf8-4050-8839-def96555159b",
+      "title": "Memoria server 启动 bug 修复（2026-05-...",
+      "body": "Memoria server 启动 bug 修复（2026-05-25）：FastAPI 0.115.5 + Starlette 1.1.0 不兼容（Starlette 1.1.0 移除 on_startup 支持），升级 FastA...",
       "tags": [
         "clara",
         "technical_note"
@@ -2395,7 +2395,7 @@
   "activity": [
     [
       "读取",
-      "从 Memoria 读取 220 条记忆快照；库内共有 580 条。"
+      "从 Memoria 读取 220 条记忆快照；库内共有 582 条。"
     ],
     [
       "定位",
