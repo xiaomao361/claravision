@@ -495,8 +495,8 @@ function buildNeuralScene(nextState) {
     });
   });
 
-  // --- Ambient background particles ---
-  var targetParticleCount = Math.min(280, 60 + (nextState.memories || []).length);
+  // --- Ambient background particles (reduced for perf) ---
+  var targetParticleCount = Math.min(120, 30 + Math.floor(((nextState.memories || []).length) / 3));
   while (nodes.length < targetParticleCount) {
     var ambId = "ambient-" + nodes.length;
     var ring = seeded(ambId);
@@ -576,16 +576,18 @@ function drawHoloStar(ctx, x, y, r, rot) {
 }
 
 function drawHoloDiamond(ctx, x, y, r, rot) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rot);
+  var cos = Math.cos(rot);
+  var sin = Math.sin(rot);
+  // Pre-rotated diamond points
+  var t = r; var h = r * 0.55;
+  var pts = [[0, -t], [h, 0], [0, t], [-h, 0]];
   ctx.beginPath();
-  ctx.moveTo(0, -r);
-  ctx.lineTo(r * 0.55, 0);
-  ctx.lineTo(0, r);
-  ctx.lineTo(-r * 0.55, 0);
+  for (var d = 0; d < 4; d++) {
+    var rx = pts[d][0] * cos - pts[d][1] * sin;
+    var ry = pts[d][0] * sin + pts[d][1] * cos;
+    d === 0 ? ctx.moveTo(x + rx, y + ry) : ctx.lineTo(x + rx, y + ry);
+  }
   ctx.closePath();
-  ctx.restore();
 }
 
 function drawHoloPentagon(ctx, x, y, r, rot) {
@@ -716,7 +718,7 @@ function drawBrainShell(ctx, width, height, time, zoom) {
   ctx.restore();
 }
 
-// --- Main neural field render with camera ---
+// --- Main neural field render (optimized) ---
 function drawNeuralField() {
   var canvas = $("#neural-canvas");
   if (!canvas || !neuralScene) return;
@@ -735,7 +737,6 @@ function drawNeuralField() {
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.clearRect(0, 0, width, height);
 
-  // Smooth camera toward target
   camera.x += (cameraTarget.x - camera.x) * 0.12;
   camera.y += (cameraTarget.y - camera.y) * 0.12;
   camera.zoom += (cameraTarget.zoom - camera.zoom) * 0.12;
@@ -746,213 +747,215 @@ function drawNeuralField() {
   var z = camera.zoom;
   var cx = width * 0.5;
   var cy = height * 0.5;
+  var isZoomed = z > 0.7;
 
-  // Global breathing field (~8s cycle)
-  var globalBreath = 1 + Math.sin(time * 0.22) * 0.04 + Math.sin(time * 0.37 + 1.2) * 0.025;
+  var globalBreath = 1 + Math.sin(time * 0.22) * 0.03 + Math.sin(time * 0.37 + 1.2) * 0.02;
 
   ctx.fillStyle = "rgba(4, 4, 2, 0.28)";
   ctx.fillRect(0, 0, width, height);
   drawBrainShell(ctx, width, height, time, z);
 
-  // --- Think pulse — expanding ring from core ---
-  var thinkPeriod = 155;
-  var thinkPhase = (neuralScene.frame % thinkPeriod) / thinkPeriod;
+  // Think pulse
+  var thinkPhase = (neuralScene.frame % 155) / 155;
   if (thinkPhase < 0.5) {
     var thinkR = thinkPhase * fieldSize * 0.5 * z;
-    var thinkAlpha = (1 - thinkPhase / 0.5) * 0.14 * globalBreath;
-    var thinkGrad = ctx.createRadialGradient(cx, cy, thinkR * 0.65, cx, cy, thinkR);
-    thinkGrad.addColorStop(0, "rgba(240, 176, 80, 0)");
-    thinkGrad.addColorStop(0.7, "rgba(240, 176, 80, " + (thinkAlpha * 0.5) + ")");
-    thinkGrad.addColorStop(1, "rgba(240, 176, 80, 0)");
-    ctx.fillStyle = thinkGrad;
+    var thinkAlpha = (1 - thinkPhase / 0.5) * 0.12 * globalBreath;
+    ctx.fillStyle = "rgba(240, 176, 80, " + (thinkAlpha * 0.3) + ")";
     ctx.beginPath();
     ctx.arc(cx, cy, thinkR, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Project nodes to screen via camera
-  var points = neuralScene.nodes.map(function (node) {
-    var wx = (node.x - 0.5) * fieldSize;
-    var wy = (node.y - 0.5) * fieldSize;
-    var sx = (wx - (camera.x - 0.5) * fieldSize) * z + width * 0.5;
-    var sy = (wy - (camera.y - 0.5) * fieldSize) * z + height * 0.5;
-    var sway = node.kind === "ambient" ? 0.8 : 0.25;
-    return Object.assign({}, node, {
-      px: sx + Math.sin(time * 1.3 + node.phase) * sway * z,
-      py: sy + Math.cos(time + node.phase * 0.7) * sway * z
-    });
-  });
+  // --- Project nodes in-place (reuse array) ---
+  var nodes = neuralScene.nodes;
+  var camDX = (camera.x - 0.5) * fieldSize;
+  var camDY = (camera.y - 0.5) * fieldSize;
+  for (var ni = 0; ni < nodes.length; ni++) {
+    var n = nodes[ni];
+    var wx = (n.x - 0.5) * fieldSize;
+    var wy = (n.y - 0.5) * fieldSize;
+    var sway = n.kind === "ambient" ? 0.8 : 0.25;
+    n.px = (wx - camDX) * z + cx + Math.sin(time * 1.3 + n.phase) * sway * z;
+    n.py = (wy - camDY) * z + cy + Math.cos(time + n.phase * 0.7) * sway * z;
+  }
 
-  var byId = new Map();
-  points.forEach(function (p) { byId.set(p.id, p); });
-  var coreP = byId.get("core");
+  // --- Build lookup once ---
+  var byId = neuralScene._byId;
+  if (!byId) {
+    byId = neuralScene._byId = new Map();
+    for (var mi = 0; mi < nodes.length; mi++) { byId.set(nodes[mi].id, nodes[mi]); }
+    neuralScene._core = byId.get("core");
+  }
+  var coreNode = neuralScene._core;
 
-  // --- Ambient field lines (only when zoom >= 0.6) ---
-  if (z > 0.5) {
-    for (var pi = 0; pi < points.length; pi += 1) {
-      for (var pj = pi + 1; pj < points.length; pj += 1) {
-        var pa = points[pi];
-        var pb = points[pj];
-        if (pa.kind !== "ambient" || pb.kind !== "ambient") continue;
-        var dist = Math.hypot(pa.px - pb.px, pa.py - pb.py);
-        var ambThresh = 68 * z;
-        if (dist < ambThresh) {
-          var palpha = (1 - dist / ambThresh) * 0.02 * (pa.energy + pb.energy) * globalBreath;
-          ctx.strokeStyle = colorFor("ambient", palpha);
-          ctx.lineWidth = 0.3;
-          ctx.beginPath();
-          ctx.moveTo(pa.px, pa.py);
-          ctx.lineTo(pb.px, pb.py);
-          ctx.stroke();
-        }
+  // --- Ambient field lines: random sampled pairs ---
+  var ambNodes = neuralScene._ambNodes;
+  if (!ambNodes) {
+    ambNodes = [];
+    for (var ai = 0; ai < nodes.length; ai++) {
+      if (nodes[ai].kind === "ambient") ambNodes.push(nodes[ai]);
+    }
+    neuralScene._ambNodes = ambNodes;
+  }
+  if (z > 0.5 && ambNodes.length > 1) {
+    var pairCount = Math.min(300, ambNodes.length * 2);
+    var ambThresh = 58 * z;
+    for (var ap = 0; ap < pairCount; ap++) {
+      var ia = Math.floor(seeded("a" + ap + neuralScene.frame) * ambNodes.length);
+      var ib = Math.floor(seeded("b" + ap + neuralScene.frame) * ambNodes.length);
+      if (ia === ib) continue;
+      var aa = ambNodes[ia];
+      var bb = ambNodes[ib];
+      var dx = aa.px - bb.px;
+      var dy = aa.py - bb.py;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < ambThresh) {
+        ctx.strokeStyle = "rgba(200, 150, 80, " + ((1 - dist / ambThresh) * 0.018 * globalBreath) + ")";
+        ctx.lineWidth = 0.25;
+        ctx.beginPath();
+        ctx.moveTo(aa.px, aa.py);
+        ctx.lineTo(bb.px, bb.py);
+        ctx.stroke();
       }
     }
   }
 
-  // --- Structural links ---
-  neuralScene.links.forEach(function (link) {
-    var a = byId.get(link.a.id);
-    var b = byId.get(link.b.id);
-    if (!a || !b) return;
-    var heatPulse = 1 + Math.sin(time * 1.8 + (link.a.id + link.b.id).length * 0.7) * 0.15;
-    var h = link.heat * heatPulse * globalBreath;
-    // Fade links when zoomed out
+  // --- Structural links (flat color, gradient only when zoomed) ---
+  var links = neuralScene.links;
+  for (var li = 0; li < links.length; li++) {
+    var link = links[li];
+    var la = byId.get(link.a.id);
+    var lb = byId.get(link.b.id);
+    if (!la || !lb) continue;
+    var heat = link.heat * (1 + Math.sin(time * 1.8 + li * 0.3) * 0.12) * globalBreath;
     var linkAlpha = z < 0.6 ? z / 0.6 : 1;
-    var grad = ctx.createLinearGradient(a.px, a.py, b.px, b.py);
-    grad.addColorStop(0, colorFor(a.kind, (0.025 + h * 0.06) * linkAlpha));
-    grad.addColorStop(1, colorFor(b.kind, (0.025 + h * 0.06) * linkAlpha));
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = (0.18 + h * 0.28) * Math.min(z, 1.5);
+    var lw = (0.16 + heat * 0.22) * Math.min(z, 1.5);
+    if (lw < 0.15) continue; // skip invisible lines
+    ctx.strokeStyle = colorFor(link.b.kind, (0.025 + heat * 0.05) * linkAlpha);
+    ctx.lineWidth = lw;
     ctx.beginPath();
-    ctx.moveTo(a.px, a.py);
-    ctx.lineTo(b.px, b.py);
+    ctx.moveTo(la.px, la.py);
+    ctx.lineTo(lb.px, lb.py);
     ctx.stroke();
-  });
+  }
 
-  // --- Signal events (data-driven) ---
-  neuralScene.signalEvents.forEach(function (evt) {
+  // --- Signal events ---
+  var sigs = neuralScene.signalEvents;
+  for (var si = 0; si < sigs.length; si++) {
+    var evt = sigs[si];
     evt.t = evt.t !== undefined ? (evt.t + evt.speed) % evt.lifetime : evt.startTime;
-    var fromP = byId.get(evt.from.id);
-    var toP = byId.get(evt.to.id);
-    if (!fromP || !toP) return;
+    var fp = byId.get(evt.from.id);
+    var tp = byId.get(evt.to.id);
+    if (!fp || !tp) continue;
     var progress = evt.t / evt.lifetime;
-    var ax = fromP.px + (toP.px - fromP.px) * progress;
-    var ay = fromP.py + (toP.py - fromP.py) * progress;
-    var dx = toP.px - fromP.px;
-    var dy = toP.py - fromP.py;
-    var len = Math.max(1, Math.hypot(dx, dy));
-    var nx = -dy / len;
-    var ny = dx / len;
+    var ax = fp.px + (tp.px - fp.px) * progress;
+    var ay = fp.py + (tp.py - fp.py) * progress;
 
-    // Trail (only when zoomed in)
-    if (z > 0.7) {
-      for (var ti = 0; ti < 5; ti += 1) {
-        var lag = progress - ti * 0.025;
+    // Signal head
+    ctx.fillStyle = colorFor(evt.color, 0.8 * globalBreath);
+    ctx.beginPath();
+    ctx.arc(ax, ay, evt.size * 0.32 * z, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Trail (only when zoomed)
+    if (isZoomed) {
+      var vx = tp.px - fp.px;
+      var vy = tp.py - fp.py;
+      for (var ti2 = 0; ti2 < 3; ti2++) {
+        var lag = progress - ti2 * 0.03;
         if (lag < 0) continue;
-        var tx = fromP.px + dx * lag + nx * Math.sin(time * 12 + ti) * 5 * z;
-        var ty = fromP.py + dy * lag + ny * Math.cos(time * 12 + ti) * 5 * z;
-        ctx.shadowBlur = 12 * z;
-        ctx.shadowColor = colorFor(evt.color, 0.55 * globalBreath);
-        ctx.fillStyle = colorFor(evt.color, (0.1 + (5 - ti) * 0.04) * globalBreath);
+        ctx.fillStyle = colorFor(evt.color, (0.08 + (3 - ti2) * 0.03) * globalBreath);
         ctx.beginPath();
-        ctx.arc(tx, ty, Math.max(0.7, 2.2 - ti * 0.28) * z, 0, Math.PI * 2);
+        ctx.arc(fp.px + vx * lag, fp.py + vy * lag, Math.max(0.6, 1.8 - ti2 * 0.3) * z, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    // Signal head
-    ctx.shadowBlur = 24 * z;
-    ctx.shadowColor = colorFor(evt.color, 0.85 * globalBreath);
-    ctx.fillStyle = colorFor(evt.color, 0.85 * globalBreath);
-    ctx.beginPath();
-    ctx.arc(ax, ay, evt.size * 0.35 * z, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Hit flash: when signal near target, flash target node
-    if (progress > 0.85 && evt.to && evt.to !== evt.from) {
-      var flashAlpha = (progress - 0.85) / 0.15;
-      ctx.shadowBlur = 32 * z;
-      ctx.shadowColor = colorFor(evt.color, flashAlpha);
-      ctx.strokeStyle = colorFor(evt.color, flashAlpha * 0.6);
-      ctx.lineWidth = 1.5 * z;
+    // Hit flash
+    if (progress > 0.85 && evt.to !== evt.from) {
+      var flash = (progress - 0.85) / 0.15;
+      ctx.strokeStyle = colorFor(evt.color, flash * 0.5);
+      ctx.lineWidth = 1.2 * z;
       ctx.beginPath();
-      ctx.arc(toP.px, toP.py, toP.size * z * 1.5, 0, Math.PI * 2);
+      ctx.arc(tp.px, tp.py, tp.size * z * 1.3, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.shadowBlur = 0;
     }
-  });
+  }
 
-  // --- Draw nodes (holographic style) ---
-  points.forEach(function (node) {
+  // --- Draw nodes (simplified fast path) ---
+  for (var di = 0; di < nodes.length; di++) {
+    var dn = nodes[di];
     var breath = 1 +
-      Math.sin(time * 1.6 + node.phase) * 0.1 +
-      Math.sin(time * 3.3 + node.phase * 1.7) * 0.06 +
-      Math.sin(time * 0.22) * 0.04;
+      Math.sin(time * 1.6 + dn.phase) * 0.08 +
+      Math.sin(time * 3.3 + dn.phase * 1.7) * 0.05;
     breath *= globalBreath;
-    var r = node.size * breath * z;
-    var isCore = node.kind === "core";
-    var isAmbient = node.kind === "ambient";
+    var r = dn.size * breath * z;
+    if (r < 0.3) continue; // skip invisible
 
-    // Outer glow halo
-    var haloAlpha = isAmbient ? 0.1 : isCore ? 0.3 : 0.18;
-    ctx.shadowBlur = isAmbient ? 4 * z : isCore ? 38 * z : 18 * z;
-    ctx.shadowColor = colorFor(node.kind, haloAlpha * breath);
-    ctx.fillStyle = colorFor(node.kind, haloAlpha * 0.35 * breath);
-    ctx.beginPath();
-    ctx.arc(node.px, node.py, r * 1.9, 0, Math.PI * 2);
-    ctx.fill();
+    var isAmbient = dn.kind === "ambient";
+    var isCore = dn.kind === "core";
 
-    // Holo shape
-    var fillAlpha = isAmbient ? 0.4 : isCore ? 0.95 : 0.85;
-    ctx.shadowBlur = isAmbient ? 3 * z : isCore ? 28 * z : 12 * z;
-    ctx.shadowColor = colorFor(node.kind, fillAlpha * breath);
-    ctx.fillStyle = colorFor(node.kind, fillAlpha * breath);
-    ctx.strokeStyle = colorFor(node.kind, Math.min(1, fillAlpha + 0.1) * breath);
-    ctx.lineWidth = isAmbient ? 0.3 : 0.7;
-    drawHoloNode(ctx, node, r, time, z);
-
-    // Memory source-color inner glow
-    if (node.kind === "memory" && node.sourceAgent) {
-      var srgb = sourceAgentRGB(node.sourceAgent);
-      var memGlow = "rgba(" + srgb[0] + "," + srgb[1] + "," + srgb[2] + ",0.35)";
-      ctx.shadowBlur = 8 * z;
-      ctx.shadowColor = memGlow;
-      ctx.fillStyle = "rgba(" + srgb[0] + "," + srgb[1] + "," + srgb[2] + ",0.7)";
+    // Ambient: mega-minimal
+    if (isAmbient) {
+      ctx.fillStyle = "rgba(200, 150, 80, " + (0.3 * breath) + ")";
       ctx.beginPath();
-      ctx.arc(node.px, node.py, r * 0.32, 0, Math.PI * 2);
+      ctx.arc(dn.px, dn.py, r * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
+
+    // --- Non-ambient: holo shape ---
+    var fillAlpha = isCore ? 0.9 : 0.8;
+    var haloAlpha = isCore ? 0.25 : 0.14;
+    ctx.fillStyle = colorFor(dn.kind, fillAlpha * breath);
+    ctx.strokeStyle = colorFor(dn.kind, Math.min(1, fillAlpha + 0.15) * breath);
+    ctx.lineWidth = 0.6;
+    drawHoloNode(ctx, dn, r, time, z);
+
+    // Halo — only for core + agents
+    if (isCore || dn.kind === "agent") {
+      ctx.fillStyle = colorFor(dn.kind, haloAlpha * breath);
+      ctx.beginPath();
+      ctx.arc(dn.px, dn.py, r * 1.8, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Core special: 3 rotating halo rings
+    // Core: rotating rings
     if (isCore) {
       for (var ri = 0; ri < 3; ri++) {
+        ctx.strokeStyle = "rgba(240, 176, 80, " + (0.22 - ri * 0.06) + ")";
+        ctx.lineWidth = 0.6 + ri * 0.35;
         var ringRot = time * (0.4 + ri * 0.2) + ri * 2.1;
-        ctx.strokeStyle = "rgba(240, 176, 80, " + (0.25 - ri * 0.07) + ")";
-        ctx.lineWidth = 0.8 + ri * 0.4;
         ctx.beginPath();
-        ctx.arc(node.px, node.py, r * (1.3 + ri * 0.4), ringRot, ringRot + Math.PI * 1.2);
+        ctx.arc(dn.px, dn.py, r * (1.3 + ri * 0.38), ringRot, ringRot + Math.PI * 1.15);
         ctx.stroke();
       }
     }
 
-    ctx.shadowBlur = 0;
-  });
+    // Memory: source-color dot (skip if zoom < 0.8)
+    if (dn.kind === "memory" && dn.sourceAgent && z > 0.8) {
+      var srgb = sourceAgentRGB(dn.sourceAgent);
+      ctx.fillStyle = "rgba(" + srgb[0] + "," + srgb[1] + "," + srgb[2] + ",0.6)";
+      ctx.beginPath();
+      ctx.arc(dn.px, dn.py, r * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
-  // --- Zoom indicator ---
+  // Zoom indicator
   ctx.fillStyle = "rgba(240, 176, 80, 0.35)";
   ctx.font = "10px Inter, monospace";
   ctx.textAlign = "right";
-  ctx.fillText(Math.round(z * 100) + "%", width - 14, height - 14);
+  ctx.fillText(Math.round(z * 100) + "%", width - 12, height - 10);
 
-  // --- Crosshair at core when zoomed ---
-  if (z > 1.5 && coreP) {
-    var chLen = 16 * z;
-    ctx.strokeStyle = "rgba(240, 176, 80, 0.25)";
-    ctx.lineWidth = 0.5;
+  // Crosshair
+  if (z > 1.5 && coreNode) {
+    var chLen = 14 * z;
+    ctx.strokeStyle = "rgba(240, 176, 80, 0.2)";
+    ctx.lineWidth = 0.4;
     ctx.beginPath();
-    ctx.moveTo(coreP.px - chLen, coreP.py); ctx.lineTo(coreP.px + chLen, coreP.py);
-    ctx.moveTo(coreP.px, coreP.py - chLen); ctx.lineTo(coreP.px, coreP.py + chLen);
+    ctx.moveTo(coreNode.px - chLen, coreNode.py); ctx.lineTo(coreNode.px + chLen, coreNode.py);
+    ctx.moveTo(coreNode.px, coreNode.py - chLen); ctx.lineTo(coreNode.px, coreNode.py + chLen);
     ctx.stroke();
   }
 
