@@ -40,8 +40,20 @@ def memory_item(row: dict) -> dict:
         "id": row.get("id", ""),
         "title": short(row.get("summary") or row.get("content") or "未命名记忆", 36),
         "body": short(row.get("content") or row.get("summary") or "", 120),
-        "tags": [source_agent, row.get("kind") or "fact"],
+        "tags": [source_agent, row.get("kind") or "fact", "归档" if row.get("archived") else "活跃"],
         "sourceAgent": source_agent,
+        "visibility": "archived" if row.get("archived") else "public",
+    }
+
+
+def shadow_memory(index: int, source_agent: str = "private") -> dict:
+    return {
+        "id": f"private-shadow-{index}",
+        "title": "受限记忆",
+        "body": "这是一条受限记忆，只作为暗粒子参与整体密度，不显示内容。",
+        "tags": ["受限内容", "不展示正文"],
+        "sourceAgent": source_agent,
+        "visibility": "private-shadow",
     }
 
 
@@ -103,7 +115,7 @@ def build_state() -> dict:
             "--query",
             "ClaraVision Memoria Continuity Jarvis agent 大脑 共同线 Clara Lara Codex",
             "--limit",
-            "160",
+            "320",
             "--with-content",
         ],
     )
@@ -118,8 +130,21 @@ def build_state() -> dict:
             "cli.py",
             "recall",
             "--limit",
-            "220",
+            "520",
             "--with-content",
+        ],
+    )
+    exported_rows = run_json(
+        MEMORIA_DIR,
+        [
+            "conda",
+            "run",
+            "-n",
+            "zhouwei",
+            "python3",
+            "cli.py",
+            "export",
+            "--include-archived",
         ],
     )
     stats = run_json(
@@ -149,8 +174,11 @@ def build_state() -> dict:
         ],
     )
 
-    memoria_rows = dedupe_rows([*relevant_rows, *recent_rows])
-    memories = [memory_item(row) for row in memoria_rows[:220]]
+    memoria_rows = dedupe_rows([*relevant_rows, *recent_rows, *exported_rows])
+    visible_memories = [memory_item(row) for row in memoria_rows[:560]]
+    private_total = int(stats.get("private") or 0)
+    shadow_count = min(private_total, max(0, int(stats.get("total") or 0) - len(visible_memories)))
+    memories = [*visible_memories, *[shadow_memory(i) for i in range(shadow_count)]]
     active_threads = [row for row in continuity_rows if row.get("status") == "active"]
     threads = [thread_item(row) for row in active_threads[:24]]
     reality_lines = [
@@ -189,7 +217,8 @@ def build_state() -> dict:
             "status": "快照",
             "summary": "这张脑图由 Memoria 的相关记忆和 Continuity 的共同线生成，Clara、Lara、Codex 都可以作为信号来源接入。",
             "facts": [
-                ["数据来源", f"当前来自 Memoria recall 和 Continuity list 的只读快照；Memoria 库内共有 {stats.get('total', '?')} 条。"],
+                ["数据来源", f"当前来自 Memoria recall/export 和 Continuity list 的只读快照；Memoria 库内共有 {stats.get('total', '?')} 条。"],
+                ["受限内容", f"私有记忆共有 {private_total} 条，只作为暗粒子显示，不展示正文。"],
                 ["共同线", "Continuity 的 reality_line / last_position 会进入圆形脑核。"],
                 ["边界", "ClaraVision 只展示，不保存事实，也不替代 Memoria 或 Continuity。"],
             ],
@@ -198,7 +227,7 @@ def build_state() -> dict:
         "threads": threads,
         "realityLines": reality_lines,
         "activity": [
-            ["读取", f"从 Memoria 读取 {len(memories)} 条记忆快照；库内共有 {stats.get('total', '?')} 条。"],
+            ["读取", f"从 Memoria 读取 {len(visible_memories)} 条可展示记忆；另有 {shadow_count} 条受限暗粒子。"],
             ["定位", f"从 Continuity 读取 {len(threads)} 条当前线索。"],
             ["组合", "把记忆、共同线和 agent 来源组合成圆形脑核。"],
             ["写回", "当前版本不自动写回，只显示快照。", "write"],

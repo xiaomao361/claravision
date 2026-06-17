@@ -1,0 +1,17 @@
+{
+  "name": "claravision",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ClaraCore living neural desktop visualizer",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "desktop": "electron .",
+    "desktop:orb": "electron .",
+    "desktop:window": "CLARAVISION_VIEW_MODE=living electron .",
+    "check": "node --check app.js && node --check electron/main.js && node --check electron/preload.js"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7"
+  }
+}

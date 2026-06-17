@@ -49,6 +49,9 @@
             <button id="refresh-button" class="icon-button" type="button" aria-label="刷新视觉状态" title="刷新">
               <span aria-hidden="true">↻</span>
             </button>
+            <button id="orb-mode-button" class="icon-button" type="button" aria-label="切换透明脑核模式" title="透明脑核">
+              <span aria-hidden="true">◌</span>
+            </button>
           </div>
           <div class="neural-stage">
             <canvas id="neural-canvas" aria-label="animated neural signal field"></canvas>
@@ -57,6 +60,27 @@
               <span><b id="node-count">0</b> 个神经元</span>
               <span><b id="link-count">0</b> 条连接</span>
             </div>
+            <div id="node-tooltip" class="node-tooltip" aria-hidden="true">
+              <strong></strong>
+              <span></span>
+            </div>
+            <section id="conversation-panel" class="conversation-panel" aria-label="Lara conversation">
+              <div class="conversation-head">
+                <div>
+                  <strong>Lara</strong>
+                  <span id="conversation-status">空闲</span>
+                </div>
+                <div class="conversation-actions">
+                  <button id="conversation-stop" class="mini-button" type="button">停止</button>
+                  <button id="conversation-clear" class="mini-button" type="button">清空</button>
+                </div>
+              </div>
+              <div id="conversation-list" class="conversation-list"></div>
+              <form id="conversation-form" class="conversation-form">
+                <textarea id="conversation-input" rows="1" placeholder="唤起 Lara..." aria-label="给 Lara 输入消息"></textarea>
+                <button id="conversation-send" type="submit">发送</button>
+              </form>
+            </section>
           </div>
         </section>
 
