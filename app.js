@@ -762,12 +762,12 @@ function agentMemoryCount(agentId, memories) {
 
 function agentColorFor(sourceAgent) {
   var map = {
-    clara: [200, 240, 255],
-    lara: [0, 212, 255],
-    codex: [0, 255, 200],
-    hermes: [130, 160, 255]
+    clara: [220, 240, 255],
+    lara: [140, 230, 255],
+    codex: [120, 255, 230],
+    hermes: [190, 210, 255]
   };
-  return map[sourceAgent] || [80, 120, 255];
+  return map[sourceAgent] || [70, 140, 220];
 }
 
 function buildNeuralScene(nextState) {
@@ -839,7 +839,7 @@ function buildNeuralScene(nextState) {
       body: memory.body,
       kind: "memory",
       x: point.x, y: point.y,
-      size: memory.visibility === "private-shadow" ? 0.8 : 1.0 + richness * 1.8,
+      size: memory.visibility === "private-shadow" ? 0.62 : 0.72 + richness * 1.22,
       energy: memory.visibility === "private-shadow" ? 0.18 : 0.24 + richness * 0.5,
       sourceAgent: memory.sourceAgent,
       visibility: memory.visibility || "public",
@@ -993,8 +993,8 @@ function buildNeuralScene(nextState) {
 
 // --- Color system (sci-fi cyan holographic palette) ---
 var AGENT_COLORS = {
-  clara: [230, 245, 255],
-  lara: [140, 235, 255],
+  clara: [220, 240, 255],
+  lara: [140, 230, 255],
   codex: [120, 255, 230],
   hermes: [190, 210, 255]
 };
@@ -1003,24 +1003,24 @@ function colorFor(kind, alpha) {
   if (alpha === undefined) alpha = 1;
   alpha = Math.max(0, Math.min(1, alpha));
   var map = {
-    core: "rgba(240, 250, 255, " + alpha + ")",
+    core: "rgba(230, 248, 255, " + alpha + ")",
     agent: "rgba(200, 240, 255, " + alpha + ")",
-    memory: "rgba(130, 225, 255, " + alpha + ")",
-    thread: "rgba(100, 210, 255, " + alpha + ")",
-    write: "rgba(120, 255, 220, " + alpha + ")",
-    source: "rgba(140, 220, 255, " + alpha + ")",
+    memory: "rgba(120, 230, 255, " + alpha + ")",
+    thread: "rgba(90, 210, 255, " + alpha + ")",
+    write: "rgba(100, 255, 220, " + alpha + ")",
+    source: "rgba(120, 220, 255, " + alpha + ")",
     line: "rgba(160, 210, 255, " + alpha + ")",
-    ambient: "rgba(60, 150, 210, " + alpha + ")",
-    amber: "rgba(100, 230, 255, " + alpha + ")",
-    gold: "rgba(140, 220, 255, " + alpha + ")",
+    ambient: "rgba(50, 140, 210, " + alpha + ")",
+    amber: "rgba(120, 230, 255, " + alpha + ")",
+    gold: "rgba(90, 210, 255, " + alpha + ")",
     coral: "rgba(255, 100, 100, " + alpha + ")",
-    warm: "rgba(80, 200, 240, " + alpha + ")"
+    warm: "rgba(70, 190, 235, " + alpha + ")"
   };
   return map[kind] || map.agent;
 }
 
 function sourceAgentRGB(sourceAgent) {
-  return AGENT_COLORS[sourceAgent] || [30, 100, 160];
+  return AGENT_COLORS[sourceAgent] || [50, 140, 210];
 }
 
 function visualLabel(label, kind) {
@@ -1076,7 +1076,7 @@ function drawHoloNode(ctx, node, r, time, zoom) {
 
   // Label (zoomed in)
   if (viewMode !== "orb" && isBig && node.label && kind !== "memory") {
-    ctx.fillStyle = "rgba(200, 240, 255, 0.85)";
+    ctx.fillStyle = "rgba(220, 245, 255, 0.85)";
     ctx.font = "700 10px Inter, system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(visualLabel(node.label, kind), node.px, node.py + r + 14);
@@ -1100,11 +1100,11 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   ctx.save();
   ctx.rotate(nebulaAngle);
   var nebula = ctx.createRadialGradient(0, 0, r * 0.02, 0, 0, r * 1.4);
-  nebula.addColorStop(0, "rgba(200, 240, 255, 0.35)");
-  nebula.addColorStop(0.12, "rgba(140, 230, 255, 0.18)");
-  nebula.addColorStop(0.25, "rgba(100, 210, 245, 0.08)");
-  nebula.addColorStop(0.55, "rgba(60, 150, 210, 0.03)");
-  nebula.addColorStop(1, "rgba(2, 6, 14, 0)");
+  nebula.addColorStop(0, "rgba(200, 240, 255, 0.2)");
+  nebula.addColorStop(0.12, "rgba(120, 230, 255, 0.1)");
+  nebula.addColorStop(0.25, "rgba(80, 200, 240, 0.045)");
+  nebula.addColorStop(0.55, "rgba(50, 150, 210, 0.02)");
+  nebula.addColorStop(1, "rgba(3, 7, 14, 0)");
   ctx.fillStyle = nebula;
   ctx.beginPath();
   ctx.arc(0, 0, r * 1.4, 0, Math.PI * 2);
@@ -1112,18 +1112,18 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   ctx.restore();
 
   var coreGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.26);
-  coreGlow.addColorStop(0, "rgba(230, 248, 255, 0.7)");
-  coreGlow.addColorStop(0.35, "rgba(160, 240, 255, 0.3)");
+  coreGlow.addColorStop(0, "rgba(230, 248, 255, 0.46)");
+  coreGlow.addColorStop(0.35, "rgba(140, 240, 255, 0.18)");
   coreGlow.addColorStop(1, "rgba(100, 200, 255, 0)");
   ctx.fillStyle = coreGlow;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.26, 0, Math.PI * 2);
   ctx.fill();
 
-  // Concentric HUD rings — dashed tech rings
-  var ringAlpha = 0.08 + zoom * 0.03;
+  // Concentric HUD rings
+  var ringAlpha = 0.1 + zoom * 0.04;
   [1, 0.78, 0.56, 0.34].forEach(function (scale, ri) {
-    ctx.strokeStyle = "rgba(0, 212, 255, " + (ringAlpha - ri * 0.02) + ")";
+    ctx.strokeStyle = "rgba(100, 230, 255, " + (ringAlpha - ri * 0.02) + ")";
     ctx.lineWidth = 0.6 + ri * 0.15;
     ctx.setLineDash([3, 18 + ri * 6]);
     ctx.lineDashOffset = time * 12 + ri * 4;
@@ -1133,36 +1133,34 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   });
   ctx.setLineDash([]);
 
-  // Radar sweep — rotating fading arc trail
-  var sweepAngle = time * 0.38;
-  var sweepSpan = Math.PI * 0.32;
-  var sweepSteps = 24;
-  for (var si = 0; si < sweepSteps; si++) {
-    var sFrac = si / sweepSteps;
-    var sAlpha = 0.03 * (1 - sFrac) * contrast.core;
-    ctx.strokeStyle = "rgba(0, 220, 255, " + sAlpha + ")";
-    ctx.lineWidth = 2.2;
+  // Radar sweep — subtle rotating sector
+  var sweepAngle = time * 0.35;
+  var sweepWidth = Math.PI * 0.28;
+  for (var si = 0; si < 16; si++) {
+    var frac = si / 16;
+    ctx.strokeStyle = "rgba(140, 235, 255, " + (0.04 * (1 - frac)) + ")";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, 0, r * 0.965, sweepAngle - sweepSpan * (sFrac + 1 / sweepSteps), sweepAngle - sweepSpan * sFrac);
+    ctx.arc(0, 0, r * 0.95, sweepAngle - sweepWidth * (frac + 1/16), sweepAngle - sweepWidth * frac);
     ctx.stroke();
   }
-  // Leading edge — bright radial line
-  ctx.strokeStyle = "rgba(180, 245, 255, " + (0.14 * contrast.core) + ")";
-  ctx.lineWidth = 1.2;
+  // Leading edge
+  ctx.strokeStyle = "rgba(180, 245, 255, 0.12)";
+  ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  ctx.lineTo(Math.cos(sweepAngle) * r * 0.965, Math.sin(sweepAngle) * r * 0.965);
+  ctx.lineTo(Math.cos(sweepAngle) * r * 0.95, Math.sin(sweepAngle) * r * 0.95);
   ctx.stroke();
 
-  // Hexagonal frame — rotating tech geometry
-  var hexAngle = time * 0.06;
-  ctx.strokeStyle = "rgba(100, 210, 255, " + (0.03 + zoom * 0.015) + ")";
-  ctx.lineWidth = 0.5;
+  // Hexagonal frame
+  var hexAngle = time * 0.05;
+  ctx.strokeStyle = "rgba(80, 200, 255, 0.04)";
+  ctx.lineWidth = 0.4;
   ctx.beginPath();
   for (var hi = 0; hi < 6; hi++) {
     var ha = hexAngle + hi * Math.PI / 3;
-    var hx = Math.cos(ha) * r * 1.02;
-    var hy = Math.sin(ha) * r * 1.02;
+    var hx = Math.cos(ha) * r * 1.01;
+    var hy = Math.sin(ha) * r * 1.01;
     if (hi === 0) ctx.moveTo(hx, hy);
     else ctx.lineTo(hx, hy);
   }
@@ -1170,7 +1168,7 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   ctx.stroke();
 
   if (viewMode === "orb") {
-    ctx.strokeStyle = "rgba(100, 200, 255, 0.045)";
+    ctx.strokeStyle = "rgba(140, 225, 255, 0.045)";
     ctx.lineWidth = 0.7;
     for (var li = -2; li <= 2; li += 1) {
       var latitude = li * 0.18;
@@ -1188,7 +1186,7 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
     }
   } else {
     // Crosshair lines
-    ctx.strokeStyle = "rgba(0, 212, 255, 0.06)";
+    ctx.strokeStyle = "rgba(100, 230, 255, 0.06)";
     ctx.lineWidth = 0.5;
     ctx.beginPath();
     ctx.moveTo(-r, 0); ctx.lineTo(r, 0);
@@ -1196,7 +1194,7 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
     ctx.stroke();
 
     // Angular tick marks
-    ctx.strokeStyle = "rgba(0, 212, 255, 0.04)";
+    ctx.strokeStyle = "rgba(100, 230, 255, 0.04)";
     ctx.lineWidth = 0.4;
     for (var ti = 0; ti < 24; ti++) {
       var ta = ti * Math.PI / 12;
@@ -1222,7 +1220,7 @@ function drawStateRays(ctx, centerX, centerY, fieldSize, time, intensity, state)
     var inner = state === "reading" ? maxR * (0.78 - (time * 0.18 + phase) % 0.4) : maxR * 0.08;
     var outer = state === "reading" ? inner + maxR * 0.24 : maxR * (0.35 + seeded("ray-" + i) * 0.55);
     var alpha = (state === "thinking" ? 0.16 : 0.1) * intensity;
-    ctx.strokeStyle = "rgba(160, 240, 255, " + alpha + ")";
+    ctx.strokeStyle = "rgba(140, 240, 255, " + alpha + ")";
     ctx.lineWidth = state === "thinking" ? 1.1 : 0.7;
     ctx.beginPath();
     ctx.moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner);
@@ -1235,10 +1233,10 @@ function drawStateRays(ctx, centerX, centerY, fieldSize, time, intensity, state)
 function drawClusterVeil(ctx, cluster, width, height, time, fieldSize) {
   if (!cluster) return;
   ctx.save();
-  ctx.fillStyle = viewMode === "orb" ? "rgba(0, 0, 0, 0.04)" : "rgba(1, 4, 10, 0.12)";
+  ctx.fillStyle = viewMode === "orb" ? "rgba(0, 0, 0, 0.04)" : "rgba(2, 2, 1, 0.12)";
   ctx.fillRect(0, 0, width, height);
   ctx.globalCompositeOperation = "lighter";
-  ctx.strokeStyle = "rgba(100, 200, 255, 0.16)";
+  ctx.strokeStyle = "rgba(160, 240, 255, 0.16)";
   ctx.lineWidth = 1.2;
   ctx.beginPath();
   ctx.arc(cluster.px, cluster.py, fieldSize * 0.18 * (1 + Math.sin(time * 1.2) * 0.05), 0, Math.PI * 2);
@@ -1274,9 +1272,9 @@ function drawSwirlSparks(ctx, width, height, time, zoom, memoryCount, centerX, c
       var x = cx + Math.cos(angle) * (radius + jitter);
       var y = cy + Math.sin(angle) * (radius + jitter * 0.7);
       var hotBand = Math.max(0, 1 - Math.abs(clippedT - (state === "thinking" ? 0.22 : 0.34)) * 3.1);
-      var alpha = (0.10 + hotBand * 0.45 + (1 - clippedT) * 0.10) * density * stateBoost;
+      var alpha = (0.06 + hotBand * 0.38 + (1 - clippedT) * 0.08) * density * stateBoost;
       var size = (0.45 + seed * 1.45 + hotBand * 1.6) * zoom * (state === "idle" ? 0.9 : 1);
-      ctx.fillStyle = "rgba(140, " + Math.floor(220 + hotBand * 35) + ", 255, " + (alpha * 1.5) + ")";
+      ctx.fillStyle = "rgba(140, " + Math.floor(220 + hotBand * 35) + ", 255, " + alpha + ")";
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
       ctx.fill();
@@ -1304,76 +1302,6 @@ function activePresence() {
   var recent = Math.max(0, 1 - (neuralScene.frame - lastInteractionFrame) / 420);
   var activeState = ["listening", "thinking", "executing", "done", "error", "reading"].includes(brainState) ? 1 : 0;
   return Math.max(0.58, Math.min(1, 0.62 + recent * 0.22 + activeState * 0.24));
-}
-
-// --- HUD overlay: corner brackets + data stream text ---
-var HUD_DATA_TAGS = [
-  "SYS.OK", "MEM.LINK", "NET.ACTIVE", "CORE.ONLINE",
-  "SCAN.A1", "IDX.0x4F2A", "SYNC.98%", "SIG.PRIME",
-  "NODE.7C3E", "TLM.LIVE", "AUX.STBY", "RELAY.03",
-  "CH.0x8B1F", "PWR.NOM", "CV.STABLE", "RT.0x2D"
-];
-
-function drawHUDDecorations(ctx, width, height, time, zoom, state) {
-  var isOrb = viewMode === "orb";
-  var baseAlpha = isOrb ? 0.05 : 0.10;
-  var stateBoost = state === "thinking" ? 1.4 : state === "executing" ? 1.6 : state === "idle" ? 0.7 : 1;
-  var alpha = baseAlpha * stateBoost;
-  var accent = "0, 212, 255";
-  var bracketLen = 20;
-
-  // --- Corner brackets ---
-  ctx.strokeStyle = "rgba(" + accent + ", " + alpha + ")";
-  ctx.lineWidth = 1.2;
-  var corners = [
-    [12, 12, 1, 1],
-    [width - 12, 12, -1, 1],
-    [12, height - 12, 1, -1],
-    [width - 12, height - 12, -1, -1]
-  ];
-  corners.forEach(function (c) {
-    var x = c[0], y = c[1], dx = c[2], dy = c[3];
-    ctx.beginPath();
-    ctx.moveTo(x, y + dy * bracketLen);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x + dx * bracketLen, y);
-    ctx.stroke();
-  });
-
-  // --- Data stream text — rotating tags around outer ring ---
-  if (!neuralScene) return;
-  var cx = width * 0.5;
-  var cy = height * 0.5;
-  var fieldSize = Math.min(width, height);
-  var ringR = fieldSize * 0.44 * zoom * 1.08;
-  var tagCount = 8;
-  var rotation = time * 0.05;
-  ctx.font = "9px 'SF Mono', 'Monaco', 'Menlo', monospace";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  for (var ti = 0; ti < tagCount; ti++) {
-    var angle = rotation + (ti / tagCount) * Math.PI * 2;
-    var tx = cx + Math.cos(angle) * ringR;
-    var ty = cy + Math.sin(angle) * ringR;
-    // Skip if off-screen
-    if (tx < 30 || tx > width - 30 || ty < 20 || ty > height - 20) continue;
-    var tagIdx = Math.floor((ti + Math.floor(time * 0.3)) % HUD_DATA_TAGS.length);
-    var tag = HUD_DATA_TAGS[tagIdx];
-    var pulseAlpha = alpha * (0.5 + 0.5 * Math.sin(time * 1.5 + ti));
-    ctx.fillStyle = "rgba(" + accent + ", " + pulseAlpha + ")";
-    ctx.fillText(tag, tx, ty);
-  }
-
-  // --- Bottom status bar text ---
-  if (!isOrb) {
-    ctx.textAlign = "left";
-    ctx.textBaseline = "bottom";
-    ctx.fillStyle = "rgba(" + accent + ", " + (alpha * 0.8) + ")";
-    ctx.font = "9px 'SF Mono', monospace";
-    var statusText = "● " + (state || "idle").toUpperCase() + "  │  ZOOM " + Math.round(zoom * 100) + "%  │  T+" + Math.floor(time) + "s";
-    ctx.fillText(statusText, 16, height - 4);
-  }
 }
 
 // --- Main neural field render (optimized) ---
@@ -1441,13 +1369,13 @@ function drawNeuralField() {
     ctx.fillStyle = shade;
     ctx.fillRect(0, 0, width, height);
     var aura = ctx.createRadialGradient(visualCx, visualCy, 0, visualCx, visualCy, baseFieldSize * 0.58 * z);
-    aura.addColorStop(0, "rgba(160, 240, 255, " + (contrast.aura * 0.7 * presence) + ")");
-    aura.addColorStop(0.36, "rgba(6, 14, 24, " + (contrast.aura * 0.25 * presence) + ")");
+    aura.addColorStop(0, "rgba(160, 240, 255, " + (contrast.aura * 0.62 * presence) + ")");
+    aura.addColorStop(0.36, "rgba(4, 10, 20, " + (contrast.aura * 0.34 * presence) + ")");
     aura.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.fillStyle = aura;
     ctx.fillRect(0, 0, width, height);
   } else {
-    ctx.fillStyle = "rgba(2, 4, 10, 0.28)";
+    ctx.fillStyle = "rgba(4, 4, 2, 0.28)";
     ctx.fillRect(0, 0, width, height);
   }
   drawBrainShell(ctx, width, height, time, z * orbBreath * (brainState === "thinking" ? 1.02 : 1) * contrast.core, visualCx, visualCy, baseFieldSize);
@@ -1458,7 +1386,7 @@ function drawNeuralField() {
   if (thinkPhase < 0.5 && (viewMode !== "orb" || brainState !== "idle")) {
     var thinkR = thinkPhase * fieldSize * 0.5 * z;
     var thinkAlpha = (1 - thinkPhase / 0.5) * 0.12 * globalBreath;
-    ctx.fillStyle = "rgba(160, 235, 255, " + (thinkAlpha * 0.5) + ")";
+    ctx.fillStyle = "rgba(140, 230, 255, " + (thinkAlpha * 0.3) + ")";
     ctx.beginPath();
     ctx.arc(visualCx, visualCy, thinkR, 0, Math.PI * 2);
     ctx.fill();
@@ -1524,7 +1452,7 @@ function drawNeuralField() {
       var dy = aa.py - bb.py;
       var dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < ambThresh) {
-        ctx.strokeStyle = "rgba(70, 160, 230, " + ((1 - dist / ambThresh) * 0.028 * globalBreath * contrast.line) + ")";
+        ctx.strokeStyle = "rgba(60, 150, 220, " + ((1 - dist / ambThresh) * 0.018 * globalBreath * contrast.line) + ")";
         ctx.lineWidth = 0.25;
         ctx.beginPath();
         ctx.moveTo(aa.px, aa.py);
@@ -1547,7 +1475,7 @@ function drawNeuralField() {
     if (lw < 0.15) continue; // skip invisible lines
     var bend = (seeded(link.a.id + link.b.id) - 0.5) * fieldSize * 0.18 * z;
     var ctrl = curveControl(la, lb, bend);
-    ctx.strokeStyle = colorFor(link.b.kind, (0.025 + heat * 0.055) * linkAlpha * contrast.line);
+    ctx.strokeStyle = colorFor(link.b.kind, (0.014 + heat * 0.032) * linkAlpha * contrast.line);
     ctx.lineWidth = lw;
     ctx.beginPath();
     ctx.moveTo(la.px, la.py);
@@ -1571,9 +1499,9 @@ function drawNeuralField() {
     var head = curvePoint(fp, ctrl, tp, progress);
 
     // Signal head
-    ctx.fillStyle = colorFor(evt.color, 0.95 * globalBreath * stateIntensity);
+    ctx.fillStyle = colorFor(evt.color, 0.72 * globalBreath * stateIntensity);
     ctx.beginPath();
-    ctx.arc(head.x, head.y, evt.size * 0.7 * z, 0, Math.PI * 2);
+    ctx.arc(head.x, head.y, evt.size * 0.45 * z, 0, Math.PI * 2);
     ctx.fill();
 
     // Particle trail on the same curve.
@@ -1583,7 +1511,7 @@ function drawNeuralField() {
       if (lag < 0) continue;
       var trail = curvePoint(fp, ctrl, tp, lag);
       var jitter = Math.sin(time * 4 + ti2 + evt.startTime * 20) * 1.8 * z;
-      ctx.fillStyle = colorFor(evt.color, (0.22 - ti2 * 0.015) * globalBreath * stateIntensity);
+      ctx.fillStyle = colorFor(evt.color, (0.13 - ti2 * 0.01) * globalBreath * stateIntensity);
       ctx.beginPath();
       ctx.arc(trail.x + jitter, trail.y - jitter * 0.45, Math.max(0.5, 2.2 - ti2 * 0.14) * z, 0, Math.PI * 2);
       ctx.fill();
@@ -1619,9 +1547,9 @@ function drawNeuralField() {
 
     // Ambient: mega-minimal
     if (isAmbient) {
-      ctx.fillStyle = "rgba(50, 150, 220, " + (0.15 * breath * stateIntensity) + ")";
+      ctx.fillStyle = "rgba(50, 150, 220, " + (0.22 * breath * stateIntensity) + ")";
       ctx.beginPath();
-      ctx.arc(dn.px, dn.py, r * 0.6, 0, Math.PI * 2);
+      ctx.arc(dn.px, dn.py, r * 0.4, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
@@ -1629,8 +1557,8 @@ function drawNeuralField() {
     // --- Non-ambient: holo shape ---
     var dim = selectedCluster && !inCluster && !isCore && !isFocused ? 0.32 : 1;
     if (privateShadow) dim *= 0.38;
-    var fillAlpha = (isCore ? 1.0 : 0.95) * dim * stateIntensity;
-    var haloAlpha = (isCore ? 0.35 : 0.2) * dim * stateIntensity;
+    var fillAlpha = (isCore ? 0.9 : 0.8) * dim * stateIntensity;
+    var haloAlpha = (isCore ? 0.25 : 0.14) * dim * stateIntensity;
     ctx.fillStyle = colorFor(dn.kind, fillAlpha * breath);
     ctx.strokeStyle = colorFor(dn.kind, Math.min(1, fillAlpha + 0.15) * breath);
     ctx.lineWidth = 0.6;
@@ -1645,7 +1573,7 @@ function drawNeuralField() {
     }
 
     if (isFocused || isHovered || inCluster) {
-      ctx.strokeStyle = isFocused ? "rgba(200, 245, 255, 0.8)" : "rgba(160, 230, 255, 0.5)";
+      ctx.strokeStyle = isFocused ? "rgba(220, 245, 255, 0.75)" : "rgba(180, 235, 255, 0.44)";
       ctx.lineWidth = isFocused ? 1.6 : inCluster ? 1.2 : 1.0;
       ctx.beginPath();
       ctx.arc(dn.px, dn.py, r * (isFocused ? 2.7 : inCluster ? 2.35 : 2.1), 0, Math.PI * 2);
@@ -1655,8 +1583,8 @@ function drawNeuralField() {
     // Core: rotating rings
     if (isCore) {
       for (var ri = 0; ri < 3; ri++) {
-        ctx.strokeStyle = "rgba(160, 240, 255, " + (0.35 - ri * 0.08) + ")";
-        ctx.lineWidth = 0.8 + ri * 0.35;
+        ctx.strokeStyle = "rgba(160, 240, 255, " + (0.22 - ri * 0.06) + ")";
+        ctx.lineWidth = 0.6 + ri * 0.35;
         var ringRot = time * (0.4 + ri * 0.2) + ri * 2.1;
         ctx.beginPath();
         ctx.arc(dn.px, dn.py, r * (1.3 + ri * 0.38), ringRot, ringRot + Math.PI * 1.15);
@@ -1674,12 +1602,9 @@ function drawNeuralField() {
     }
   }
 
-  // HUD overlay — corner brackets, data stream, status bar
-  drawHUDDecorations(ctx, width, height, time, z, brainState);
-
   // Zoom indicator
   if (viewMode !== "orb") {
-    ctx.fillStyle = "rgba(0, 212, 255, 0.35)";
+    ctx.fillStyle = "rgba(140, 230, 255, 0.35)";
     ctx.font = "10px Inter, monospace";
     ctx.textAlign = "right";
     ctx.fillText(STATE_LABELS[brainState] + " " + Math.round(z * 100) + "%", width - 12, height - 10);
@@ -1688,7 +1613,7 @@ function drawNeuralField() {
   // Crosshair
   if (viewMode !== "orb" && z > 1.5 && coreNode) {
     var chLen = 14 * z;
-    ctx.strokeStyle = "rgba(0, 212, 255, 0.2)";
+    ctx.strokeStyle = "rgba(140, 230, 255, 0.2)";
     ctx.lineWidth = 0.4;
     ctx.beginPath();
     ctx.moveTo(coreNode.px - chLen, coreNode.py); ctx.lineTo(coreNode.px + chLen, coreNode.py);
