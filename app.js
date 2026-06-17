@@ -839,7 +839,7 @@ function buildNeuralScene(nextState) {
       body: memory.body,
       kind: "memory",
       x: point.x, y: point.y,
-      size: memory.visibility === "private-shadow" ? 0.62 : 0.72 + richness * 1.22,
+      size: memory.visibility === "private-shadow" ? 0.8 : 1.0 + richness * 1.8,
       energy: memory.visibility === "private-shadow" ? 0.18 : 0.24 + richness * 0.5,
       sourceAgent: memory.sourceAgent,
       visibility: memory.visibility || "public",
@@ -1524,7 +1524,7 @@ function drawNeuralField() {
       var dy = aa.py - bb.py;
       var dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < ambThresh) {
-        ctx.strokeStyle = "rgba(30, 100, 160, " + ((1 - dist / ambThresh) * 0.018 * globalBreath * contrast.line) + ")";
+        ctx.strokeStyle = "rgba(70, 160, 230, " + ((1 - dist / ambThresh) * 0.028 * globalBreath * contrast.line) + ")";
         ctx.lineWidth = 0.25;
         ctx.beginPath();
         ctx.moveTo(aa.px, aa.py);
@@ -1547,7 +1547,7 @@ function drawNeuralField() {
     if (lw < 0.15) continue; // skip invisible lines
     var bend = (seeded(link.a.id + link.b.id) - 0.5) * fieldSize * 0.18 * z;
     var ctrl = curveControl(la, lb, bend);
-    ctx.strokeStyle = colorFor(link.b.kind, (0.014 + heat * 0.032) * linkAlpha * contrast.line);
+    ctx.strokeStyle = colorFor(link.b.kind, (0.025 + heat * 0.055) * linkAlpha * contrast.line);
     ctx.lineWidth = lw;
     ctx.beginPath();
     ctx.moveTo(la.px, la.py);
@@ -1571,9 +1571,9 @@ function drawNeuralField() {
     var head = curvePoint(fp, ctrl, tp, progress);
 
     // Signal head
-    ctx.fillStyle = colorFor(evt.color, 0.72 * globalBreath * stateIntensity);
+    ctx.fillStyle = colorFor(evt.color, 0.95 * globalBreath * stateIntensity);
     ctx.beginPath();
-    ctx.arc(head.x, head.y, evt.size * 0.45 * z, 0, Math.PI * 2);
+    ctx.arc(head.x, head.y, evt.size * 0.7 * z, 0, Math.PI * 2);
     ctx.fill();
 
     // Particle trail on the same curve.
@@ -1583,7 +1583,7 @@ function drawNeuralField() {
       if (lag < 0) continue;
       var trail = curvePoint(fp, ctrl, tp, lag);
       var jitter = Math.sin(time * 4 + ti2 + evt.startTime * 20) * 1.8 * z;
-      ctx.fillStyle = colorFor(evt.color, (0.13 - ti2 * 0.01) * globalBreath * stateIntensity);
+      ctx.fillStyle = colorFor(evt.color, (0.22 - ti2 * 0.015) * globalBreath * stateIntensity);
       ctx.beginPath();
       ctx.arc(trail.x + jitter, trail.y - jitter * 0.45, Math.max(0.5, 2.2 - ti2 * 0.14) * z, 0, Math.PI * 2);
       ctx.fill();
@@ -1619,9 +1619,9 @@ function drawNeuralField() {
 
     // Ambient: mega-minimal
     if (isAmbient) {
-      ctx.fillStyle = "rgba(30, 100, 160, " + (0.22 * breath * stateIntensity) + ")";
+      ctx.fillStyle = "rgba(50, 150, 220, " + (0.15 * breath * stateIntensity) + ")";
       ctx.beginPath();
-      ctx.arc(dn.px, dn.py, r * 0.4, 0, Math.PI * 2);
+      ctx.arc(dn.px, dn.py, r * 0.6, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
@@ -1629,8 +1629,8 @@ function drawNeuralField() {
     // --- Non-ambient: holo shape ---
     var dim = selectedCluster && !inCluster && !isCore && !isFocused ? 0.32 : 1;
     if (privateShadow) dim *= 0.38;
-    var fillAlpha = (isCore ? 0.9 : 0.8) * dim * stateIntensity;
-    var haloAlpha = (isCore ? 0.25 : 0.14) * dim * stateIntensity;
+    var fillAlpha = (isCore ? 1.0 : 0.95) * dim * stateIntensity;
+    var haloAlpha = (isCore ? 0.35 : 0.2) * dim * stateIntensity;
     ctx.fillStyle = colorFor(dn.kind, fillAlpha * breath);
     ctx.strokeStyle = colorFor(dn.kind, Math.min(1, fillAlpha + 0.15) * breath);
     ctx.lineWidth = 0.6;
@@ -1645,7 +1645,7 @@ function drawNeuralField() {
     }
 
     if (isFocused || isHovered || inCluster) {
-      ctx.strokeStyle = isFocused ? "rgba(120, 220, 255, 0.75)" : "rgba(100, 200, 255, 0.44)";
+      ctx.strokeStyle = isFocused ? "rgba(200, 245, 255, 0.8)" : "rgba(160, 230, 255, 0.5)";
       ctx.lineWidth = isFocused ? 1.6 : inCluster ? 1.2 : 1.0;
       ctx.beginPath();
       ctx.arc(dn.px, dn.py, r * (isFocused ? 2.7 : inCluster ? 2.35 : 2.1), 0, Math.PI * 2);
@@ -1655,8 +1655,8 @@ function drawNeuralField() {
     // Core: rotating rings
     if (isCore) {
       for (var ri = 0; ri < 3; ri++) {
-        ctx.strokeStyle = "rgba(0, 212, 255, " + (0.22 - ri * 0.06) + ")";
-        ctx.lineWidth = 0.6 + ri * 0.35;
+        ctx.strokeStyle = "rgba(160, 240, 255, " + (0.35 - ri * 0.08) + ")";
+        ctx.lineWidth = 0.8 + ri * 0.35;
         var ringRot = time * (0.4 + ri * 0.2) + ri * 2.1;
         ctx.beginPath();
         ctx.arc(dn.px, dn.py, r * (1.3 + ri * 0.38), ringRot, ringRot + Math.PI * 1.15);
