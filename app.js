@@ -927,7 +927,7 @@ function buildNeuralScene(nextState) {
   var activity = nextState.activity || [];
   var writebacks = nextState.writebacks || [];
 
-  // Each writeback → signal burst from periphery to core
+  // Each writeback → signal burst from periphery to core (spiral style)
   writebacks.forEach(function (wb, wbi) {
     var sourceNode = nodes.find(function (n) { return n.kind === "write" && n.id === "write-" + wbi; }) || core;
     for (var s = 0; s < 3; s += 1) {
@@ -937,12 +937,13 @@ function buildNeuralScene(nextState) {
         speed: 0.002 + seeded(wb.title + s) * 0.003,
         color: "warm",
         size: 2.8,
-        lifetime: 1
+        lifetime: 1,
+        style: "spiral"
       });
     }
   });
 
-  // Each activity → signal pulse through agent field
+  // Each activity → signal pulse through agent field (diffuse style)
   activity.forEach(function (act, ai) {
     var isWrite = act[2] === "write";
     var srcAgent = agentNodes[ai % agentNodes.length] || core;
@@ -953,11 +954,12 @@ function buildNeuralScene(nextState) {
       color: isWrite ? "warm" : "amber",
       size: isWrite ? 3.2 : 2.2,
       lifetime: 1.4,
-      label: act[0]
+      label: act[0],
+      style: "diffuse"
     });
   });
 
-  // Memory recall simulation — random memory nodes fire toward core
+  // Memory recall — random memory nodes fire toward core (flash style)
   memoryNodes.slice(0, 140).forEach(function (mem, mi) {
     signalEvents.push({
       from: mem, to: core,
@@ -965,7 +967,8 @@ function buildNeuralScene(nextState) {
       speed: 0.0016 + seeded(mem.id) * 0.0028,
       color: "gold",
       size: 1.8,
-      lifetime: 0.9 + seeded(mem.id + "-life") * 0.5
+      lifetime: 0.9 + seeded(mem.id + "-life") * 0.5,
+      style: "flash"
     });
   });
 
@@ -1132,6 +1135,24 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
     ctx.stroke();
   });
   ctx.setLineDash([]);
+
+  // HUD coordinate ring — degree labels on outer ring
+  if (zoom > 0.55) {
+    var labelR = r * 1.07;
+    ctx.font = (viewMode === "orb" ? "8px" : "9px") + " 'SF Mono', Monaco, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    var degs = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
+    for (var di = 0; di < degs.length; di++) {
+      var da = (-Math.PI / 2) + (degs[di] * Math.PI / 180);
+      var isMajor = degs[di] % 90 === 0;
+      if (isMajor) {
+        // Major tick label (0°, 90°, 180°, 270°)
+        ctx.fillStyle = "rgba(100, 230, 255, " + (0.12 + zoom * 0.04) + ")";
+        ctx.fillText(degs[di] + "°", Math.cos(da) * labelR, Math.sin(da) * labelR);
+      }
+    }
+  }
 
   // Radar sweep — subtle rotating sector
   var sweepAngle = time * 0.35;
@@ -1488,42 +1509,82 @@ function drawNeuralField() {
   for (var si = 0; si < sigs.length; si++) {
     var evt = sigs[si];
     var signalBoost = profile.signal;
-    evt.t = evt.t !== undefined ? (evt.t + evt.speed * signalBoost) % evt.lifetime : evt.startTime;
+    var style = evt.style || "";
+    var speedMult = style === "flash" ? 2.0 : style === "spiral" ? 0.7 : 1.0;
+    evt.t = evt.t !== undefined ? (evt.t + evt.speed * signalBoost * speedMult) % evt.lifetime : evt.startTime;
     var fp = byId.get(evt.from.id);
     var tp = byId.get(evt.to.id);
     if (!fp || !tp) continue;
     var progress = evt.t / evt.lifetime;
-    var bend = (seeded(evt.from.id + evt.to.id + evt.color) - 0.5) * fieldSize * 0.24 * z;
-    if (evt.from.kind === "memory") bend += fieldSize * 0.08 * z;
+
+    // Flash style: straight line, no bend
+    var bend = style === "flash" ? 0 : (seeded(evt.from.id + evt.to.id + evt.color) - 0.5) * fieldSize * 0.24 * z;
+    if (evt.from.kind === "memory" && style !== "flash") bend += fieldSize * 0.08 * z;
     var ctrl = curveControl(fp, tp, bend);
     var head = curvePoint(fp, ctrl, tp, progress);
 
+    // Style-specific head params
+    var headAlpha = style === "flash" ? 0.95 : style === "spiral" ? 0.8 : 0.72;
+    var headSize = style === "flash" ? 0.7 : style === "spiral" ? 0.5 : 0.45;
+
     // Signal head
-    ctx.fillStyle = colorFor(evt.color, 0.72 * globalBreath * stateIntensity);
+    ctx.fillStyle = colorFor(evt.color, headAlpha * globalBreath * stateIntensity);
     ctx.beginPath();
-    ctx.arc(head.x, head.y, evt.size * 0.45 * z, 0, Math.PI * 2);
+    ctx.arc(head.x, head.y, evt.size * headSize * z, 0, Math.PI * 2);
     ctx.fill();
 
-    // Particle trail on the same curve.
-    var trailCount = isZoomed ? 9 : 5;
+    // Trail
+    var trailCount = style === "flash" ? 3 : style === "spiral" ? 7 : 5;
     for (var ti2 = 1; ti2 <= trailCount; ti2++) {
-      var lag = progress - ti2 * 0.028;
+      var lag = progress - ti2 * (style === "flash" ? 0.02 : 0.028);
       if (lag < 0) continue;
       var trail = curvePoint(fp, ctrl, tp, lag);
       var jitter = Math.sin(time * 4 + ti2 + evt.startTime * 20) * 1.8 * z;
-      ctx.fillStyle = colorFor(evt.color, (0.13 - ti2 * 0.01) * globalBreath * stateIntensity);
+      var trailAlpha = style === "flash" ? (0.2 - ti2 * 0.04) : (0.13 - ti2 * 0.01);
+      ctx.fillStyle = colorFor(evt.color, trailAlpha * globalBreath * stateIntensity);
       ctx.beginPath();
       ctx.arc(trail.x + jitter, trail.y - jitter * 0.45, Math.max(0.5, 2.2 - ti2 * 0.14) * z, 0, Math.PI * 2);
       ctx.fill();
     }
 
+    // Spiral: draw 2 additional phase-shifted curves
+    if (style === "spiral") {
+      for (var sp = 0; sp < 2; sp++) {
+        var phaseShift = (sp + 1) * 0.4;
+        var spiralBend = bend + (sp === 0 ? fieldSize * 0.06 * z : -fieldSize * 0.06 * z);
+        var spCtrl = curveControl(fp, tp, spiralBend);
+        var spHead = curvePoint(fp, spCtrl, tp, progress);
+        ctx.fillStyle = colorFor(evt.color, 0.28 * globalBreath * stateIntensity);
+        ctx.beginPath();
+        ctx.arc(spHead.x, spHead.y, evt.size * 0.28 * z, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Diffuse: burst particles when approaching target
+    if (style === "diffuse" && progress > 0.65) {
+      var burstCount = 3;
+      var burstPhase = (progress - 0.65) / 0.35;
+      for (var bi = 0; bi < burstCount; bi++) {
+        var bAngle = seeded(evt.from.id + "burst" + bi) * Math.PI * 2 + progress * 3;
+        var bR = evt.size * burstPhase * 0.6 * z;
+        var bx = head.x + Math.cos(bAngle) * bR;
+        var by = head.y + Math.sin(bAngle) * bR;
+        ctx.fillStyle = colorFor(evt.color, 0.5 * (1 - burstPhase) * globalBreath * stateIntensity);
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.2 * z, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
     // Hit flash
     if (progress > 0.85 && evt.to !== evt.from) {
-      var flash = (progress - 0.85) / 0.15;
-      ctx.strokeStyle = colorFor(evt.color, flash * 0.5);
-      ctx.lineWidth = 1.2 * z;
+      var flashProgress = (progress - 0.85) / 0.15;
+      var flashAlpha = style === "flash" ? 0.75 : 0.5;
+      ctx.strokeStyle = colorFor(evt.color, flashProgress * flashAlpha);
+      ctx.lineWidth = (style === "flash" ? 1.8 : 1.2) * z;
       ctx.beginPath();
-      ctx.arc(tp.px, tp.py, tp.size * z * 1.3, 0, Math.PI * 2);
+      ctx.arc(tp.px, tp.py, tp.size * z * (style === "flash" ? 1.6 : 1.3), 0, Math.PI * 2);
       ctx.stroke();
     }
   }
