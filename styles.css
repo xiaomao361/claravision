@@ -1,11 +1,11 @@
 :root {
   color-scheme: dark;
-  --void: #020410;
+  --void: #030812;
   --void-2: #040818;
   --panel: rgba(22, 20, 17, 0.78);
   --panel-strong: rgba(30, 27, 22, 0.9);
-  --ink: #d0e8ff;
-  --muted: #5a8aaa;
+  --ink: #e0f2ff;
+  --muted: #6a9abb;
   --line: rgba(200, 240, 255, 0.12);
   --amber: #00d4ff;
   --cyan: #00d4ff;
@@ -228,7 +228,7 @@ h2 {
   place-items: center;
   border: 1px solid rgba(0, 212, 255, 0.25);
   border-radius: 8px;
-  background: rgba(0, 212, 255, 0.08);
+  background: rgba(120, 225, 255, 0.12);
   color: var(--ink);
   cursor: pointer;
 }
@@ -529,8 +529,8 @@ h1 {
   min-height: 680px;
   border: 1px solid rgba(0, 200, 255, 0.08);
   background:
-    radial-gradient(circle at 50% 50%, rgba(100, 220, 255, 0.16), transparent 13%),
-    radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(140, 235, 255, 0.22), transparent 13%),
+    radial-gradient(circle at 50% 50%, rgba(120, 225, 255, 0.12), transparent 45%),
     linear-gradient(rgba(0, 200, 255, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 200, 255, 0.025) 1px, transparent 1px),
     #030201;
@@ -640,21 +640,21 @@ body.orb-mode.is-paused {
 }
 
 body.orb-mode[data-contrast="clear"] {
-  --orb-panel: rgba(2, 6, 14, 0.18);
-  --orb-line: rgba(0, 212, 255, 0.12);
-  --orb-text: rgba(180, 220, 255, 0.68);
+  --orb-panel: rgba(3, 8, 14, 0.22);
+  --orb-line: rgba(100, 220, 255, 0.15);
+  --orb-text: rgba(190, 235, 255, 0.72);
 }
 
 body.orb-mode[data-contrast="soft"] {
-  --orb-panel: rgba(3, 8, 16, 0.42);
-  --orb-line: rgba(0, 220, 255, 0.2);
-  --orb-text: rgba(180, 225, 255, 0.8);
+  --orb-panel: rgba(4, 10, 18, 0.48);
+  --orb-line: rgba(120, 230, 255, 0.25);
+  --orb-text: rgba(200, 240, 255, 0.85);
 }
 
 body.orb-mode[data-contrast="high"] {
-  --orb-panel: rgba(2, 6, 14, 0.64);
-  --orb-line: rgba(100, 200, 255, 0.34);
-  --orb-text: rgba(200, 245, 255, 0.95);
+  --orb-panel: rgba(4, 10, 18, 0.72);
+  --orb-line: rgba(140, 225, 255, 0.45);
+  --orb-text: rgba(220, 248, 255, 0.98);
 }
 
 .orb-mode .shell {
@@ -902,7 +902,7 @@ body.orb-mode[data-contrast="high"] {
 
 .conversation-form textarea:focus {
   border-color: rgba(0, 212, 255, 0.48);
-  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(120, 225, 255, 0.12);
 }
 
 .conversation-form button {
@@ -984,8 +984,8 @@ body.orb-mode[data-contrast="high"] {
     0deg,
     transparent 0px,
     transparent 2px,
-    rgba(0, 200, 255, 0.015) 2px,
-    rgba(0, 200, 255, 0.015) 3px
+    rgba(140, 220, 255, 0.005) 2px,
+    rgba(140, 220, 255, 0.005) 3px
   );
 }
 
@@ -996,7 +996,7 @@ body.orb-mode[data-contrast="high"] {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  box-shadow: inset 0 0 120px rgba(0, 60, 120, 0.18);
+  box-shadow: inset 0 0 60px rgba(0, 30, 60, 0.06);
 }
 
 /* Orb mode — keep scan lines very subtle */
@@ -1067,7 +1067,7 @@ h1 {
 /* Mini buttons — HUD style */
 .mini-button {
   border-color: rgba(0, 212, 255, 0.18);
-  background: rgba(0, 212, 255, 0.08);
+  background: rgba(120, 225, 255, 0.12);
   color: rgba(180, 220, 255, 0.78);
   font-family: "SF Mono", "Monaco", monospace;
   letter-spacing: 0.03em;
@@ -1094,13 +1094,13 @@ h1 {
 
 .conversation-form textarea:focus {
   border-color: rgba(0, 212, 255, 0.48);
-  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.08);
+  box-shadow: 0 0 0 2px rgba(120, 225, 255, 0.12);
 }
 
 /* Icon button — HUD style */
 .icon-button {
   border-color: rgba(0, 212, 255, 0.25);
-  background: rgba(0, 212, 255, 0.08);
+  background: rgba(120, 225, 255, 0.12);
 }
 
 .icon-button:hover,

@@ -993,28 +993,28 @@ function buildNeuralScene(nextState) {
 
 // --- Color system (sci-fi cyan holographic palette) ---
 var AGENT_COLORS = {
-  clara: [180, 220, 255],
-  lara: [0, 212, 255],
-  codex: [64, 224, 208],
-  hermes: [130, 160, 255]
+  clara: [230, 245, 255],
+  lara: [140, 235, 255],
+  codex: [120, 255, 230],
+  hermes: [190, 210, 255]
 };
 
 function colorFor(kind, alpha) {
   if (alpha === undefined) alpha = 1;
   alpha = Math.max(0, Math.min(1, alpha));
   var map = {
-    core: "rgba(180, 230, 255, " + alpha + ")",
-    agent: "rgba(180, 220, 255, " + alpha + ")",
-    memory: "rgba(0, 212, 255, " + alpha + ")",
-    thread: "rgba(64, 180, 255, " + alpha + ")",
-    write: "rgba(0, 255, 200, " + alpha + ")",
-    source: "rgba(100, 200, 255, " + alpha + ")",
-    line: "rgba(130, 180, 255, " + alpha + ")",
-    ambient: "rgba(30, 100, 160, " + alpha + ")",
-    amber: "rgba(0, 212, 255, " + alpha + ")",
-    gold: "rgba(64, 180, 255, " + alpha + ")",
-    coral: "rgba(255, 80, 80, " + alpha + ")",
-    warm: "rgba(0, 180, 220, " + alpha + ")"
+    core: "rgba(240, 250, 255, " + alpha + ")",
+    agent: "rgba(200, 240, 255, " + alpha + ")",
+    memory: "rgba(130, 225, 255, " + alpha + ")",
+    thread: "rgba(100, 210, 255, " + alpha + ")",
+    write: "rgba(120, 255, 220, " + alpha + ")",
+    source: "rgba(140, 220, 255, " + alpha + ")",
+    line: "rgba(160, 210, 255, " + alpha + ")",
+    ambient: "rgba(60, 150, 210, " + alpha + ")",
+    amber: "rgba(100, 230, 255, " + alpha + ")",
+    gold: "rgba(140, 220, 255, " + alpha + ")",
+    coral: "rgba(255, 100, 100, " + alpha + ")",
+    warm: "rgba(80, 200, 240, " + alpha + ")"
   };
   return map[kind] || map.agent;
 }
@@ -1100,10 +1100,10 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   ctx.save();
   ctx.rotate(nebulaAngle);
   var nebula = ctx.createRadialGradient(0, 0, r * 0.02, 0, 0, r * 1.4);
-  nebula.addColorStop(0, "rgba(120, 220, 255, 0.2)");
-  nebula.addColorStop(0.12, "rgba(0, 212, 255, 0.1)");
-  nebula.addColorStop(0.25, "rgba(0, 180, 220, 0.045)");
-  nebula.addColorStop(0.55, "rgba(40, 140, 200, 0.02)");
+  nebula.addColorStop(0, "rgba(200, 240, 255, 0.35)");
+  nebula.addColorStop(0.12, "rgba(140, 230, 255, 0.18)");
+  nebula.addColorStop(0.25, "rgba(100, 210, 245, 0.08)");
+  nebula.addColorStop(0.55, "rgba(60, 150, 210, 0.03)");
   nebula.addColorStop(1, "rgba(2, 6, 14, 0)");
   ctx.fillStyle = nebula;
   ctx.beginPath();
@@ -1112,16 +1112,16 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   ctx.restore();
 
   var coreGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.26);
-  coreGlow.addColorStop(0, "rgba(180, 240, 255, 0.46)");
-  coreGlow.addColorStop(0.35, "rgba(0, 220, 255, 0.18)");
-  coreGlow.addColorStop(1, "rgba(0, 180, 255, 0)");
+  coreGlow.addColorStop(0, "rgba(230, 248, 255, 0.7)");
+  coreGlow.addColorStop(0.35, "rgba(160, 240, 255, 0.3)");
+  coreGlow.addColorStop(1, "rgba(100, 200, 255, 0)");
   ctx.fillStyle = coreGlow;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.26, 0, Math.PI * 2);
   ctx.fill();
 
   // Concentric HUD rings — dashed tech rings
-  var ringAlpha = 0.12 + zoom * 0.05;
+  var ringAlpha = 0.08 + zoom * 0.03;
   [1, 0.78, 0.56, 0.34].forEach(function (scale, ri) {
     ctx.strokeStyle = "rgba(0, 212, 255, " + (ringAlpha - ri * 0.02) + ")";
     ctx.lineWidth = 0.6 + ri * 0.15;
@@ -1139,7 +1139,7 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   var sweepSteps = 24;
   for (var si = 0; si < sweepSteps; si++) {
     var sFrac = si / sweepSteps;
-    var sAlpha = 0.07 * (1 - sFrac) * contrast.core;
+    var sAlpha = 0.03 * (1 - sFrac) * contrast.core;
     ctx.strokeStyle = "rgba(0, 220, 255, " + sAlpha + ")";
     ctx.lineWidth = 2.2;
     ctx.beginPath();
@@ -1147,7 +1147,7 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
     ctx.stroke();
   }
   // Leading edge — bright radial line
-  ctx.strokeStyle = "rgba(140, 240, 255, " + (0.28 * contrast.core) + ")";
+  ctx.strokeStyle = "rgba(180, 245, 255, " + (0.14 * contrast.core) + ")";
   ctx.lineWidth = 1.2;
   ctx.beginPath();
   ctx.moveTo(0, 0);
@@ -1156,7 +1156,7 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
 
   // Hexagonal frame — rotating tech geometry
   var hexAngle = time * 0.06;
-  ctx.strokeStyle = "rgba(0, 180, 240, " + (0.06 + zoom * 0.03) + ")";
+  ctx.strokeStyle = "rgba(100, 210, 255, " + (0.03 + zoom * 0.015) + ")";
   ctx.lineWidth = 0.5;
   ctx.beginPath();
   for (var hi = 0; hi < 6; hi++) {
@@ -1222,7 +1222,7 @@ function drawStateRays(ctx, centerX, centerY, fieldSize, time, intensity, state)
     var inner = state === "reading" ? maxR * (0.78 - (time * 0.18 + phase) % 0.4) : maxR * 0.08;
     var outer = state === "reading" ? inner + maxR * 0.24 : maxR * (0.35 + seeded("ray-" + i) * 0.55);
     var alpha = (state === "thinking" ? 0.16 : 0.1) * intensity;
-    ctx.strokeStyle = "rgba(0, 220, 255, " + alpha + ")";
+    ctx.strokeStyle = "rgba(160, 240, 255, " + alpha + ")";
     ctx.lineWidth = state === "thinking" ? 1.1 : 0.7;
     ctx.beginPath();
     ctx.moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner);
@@ -1274,9 +1274,9 @@ function drawSwirlSparks(ctx, width, height, time, zoom, memoryCount, centerX, c
       var x = cx + Math.cos(angle) * (radius + jitter);
       var y = cy + Math.sin(angle) * (radius + jitter * 0.7);
       var hotBand = Math.max(0, 1 - Math.abs(clippedT - (state === "thinking" ? 0.22 : 0.34)) * 3.1);
-      var alpha = (0.06 + hotBand * 0.38 + (1 - clippedT) * 0.08) * density * stateBoost;
+      var alpha = (0.10 + hotBand * 0.45 + (1 - clippedT) * 0.10) * density * stateBoost;
       var size = (0.45 + seed * 1.45 + hotBand * 1.6) * zoom * (state === "idle" ? 0.9 : 1);
-      ctx.fillStyle = "rgba(0, " + Math.floor(180 + hotBand * 75) + ", 255, " + alpha + ")";
+      ctx.fillStyle = "rgba(140, " + Math.floor(220 + hotBand * 35) + ", 255, " + (alpha * 1.5) + ")";
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
       ctx.fill();
@@ -1316,7 +1316,7 @@ var HUD_DATA_TAGS = [
 
 function drawHUDDecorations(ctx, width, height, time, zoom, state) {
   var isOrb = viewMode === "orb";
-  var baseAlpha = isOrb ? 0.08 : 0.16;
+  var baseAlpha = isOrb ? 0.05 : 0.10;
   var stateBoost = state === "thinking" ? 1.4 : state === "executing" ? 1.6 : state === "idle" ? 0.7 : 1;
   var alpha = baseAlpha * stateBoost;
   var accent = "0, 212, 255";
@@ -1441,8 +1441,8 @@ function drawNeuralField() {
     ctx.fillStyle = shade;
     ctx.fillRect(0, 0, width, height);
     var aura = ctx.createRadialGradient(visualCx, visualCy, 0, visualCx, visualCy, baseFieldSize * 0.58 * z);
-    aura.addColorStop(0, "rgba(0, 212, 255, " + (contrast.aura * 0.62 * presence) + ")");
-    aura.addColorStop(0.36, "rgba(4, 10, 20, " + (contrast.aura * 0.34 * presence) + ")");
+    aura.addColorStop(0, "rgba(160, 240, 255, " + (contrast.aura * 0.7 * presence) + ")");
+    aura.addColorStop(0.36, "rgba(6, 14, 24, " + (contrast.aura * 0.25 * presence) + ")");
     aura.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.fillStyle = aura;
     ctx.fillRect(0, 0, width, height);
@@ -1458,7 +1458,7 @@ function drawNeuralField() {
   if (thinkPhase < 0.5 && (viewMode !== "orb" || brainState !== "idle")) {
     var thinkR = thinkPhase * fieldSize * 0.5 * z;
     var thinkAlpha = (1 - thinkPhase / 0.5) * 0.12 * globalBreath;
-    ctx.fillStyle = "rgba(0, 212, 255, " + (thinkAlpha * 0.3) + ")";
+    ctx.fillStyle = "rgba(160, 235, 255, " + (thinkAlpha * 0.5) + ")";
     ctx.beginPath();
     ctx.arc(visualCx, visualCy, thinkR, 0, Math.PI * 2);
     ctx.fill();
