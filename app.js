@@ -97,6 +97,52 @@ var dragStart = { x: 0, y: 0 };
 var dragCameraStart = { x: 0.5, y: 0.5 };
 var hoveredNode = null;
 var selectedNode = null;
+
+// --- Visual self-expression system (Lara chooses her own color/breath) ---
+var VIZ_COLORS = {
+  cyan:      [120, 230, 255],   // default — calm working
+  "deep-blue":[60, 120, 220],   // deep thinking
+  amber:     [255, 180, 80],    // executing — running commands, building
+  teal:      [80, 220, 180],    // reading memories
+  purple:    [180, 120, 255],   // busy — multiple tools, complex task
+  red:       [255, 90, 90],     // urgent, important, error
+  "warm-gold":[255, 200, 120],  // warm companion mode
+  "ice-white":[200, 240, 255]   // quiet, idle, peaceful
+};
+var VIZ_BREATH = { slow: 0.6, normal: 1.0, fast: 1.4, rapid: 1.9 };
+
+var vizTargetColor = VIZ_COLORS.cyan.slice();
+var vizCurrentColor = VIZ_COLORS.cyan.slice();
+var vizTargetBreath = 1.0;
+var vizCurrentBreath = 1.0;
+
+function setVizColor(name) {
+  var c = VIZ_COLORS[name];
+  if (c) vizTargetColor = c.slice();
+}
+function setVizBreath(name) {
+  var b = VIZ_BREATH[name];
+  if (b) vizTargetBreath = b;
+}
+
+// Called each frame to interpolate current → target
+function updateVizInterpolation() {
+  for (var i = 0; i < 3; i++) {
+    vizCurrentColor[i] += (vizTargetColor[i] - vizCurrentColor[i]) * 0.015;
+  }
+  vizCurrentBreath += (vizTargetBreath - vizCurrentBreath) * 0.02;
+}
+
+// Apply tint to a raw rgba color string — shifts hue toward viz color
+function vizTint(r, g, b, alpha) {
+  // Blend: 70% original, 30% viz tint (subtle global wash)
+  var tr = vizCurrentColor[0], tg = vizCurrentColor[1], tb = vizCurrentColor[2];
+  return "rgba(" +
+    Math.round(r * 0.7 + tr * 0.3) + "," +
+    Math.round(g * 0.7 + tg * 0.3) + "," +
+    Math.round(b * 0.7 + tb * 0.3) + "," +
+    alpha + ")";
+}
 var selectedCluster = null;
 var pointer = { x: 0, y: 0 };
 var brainState = "idle";
@@ -1024,18 +1070,18 @@ function colorFor(kind, alpha) {
   if (alpha === undefined) alpha = 1;
   alpha = Math.max(0, Math.min(1, alpha));
   var map = {
-    core: "rgba(230, 248, 255, " + alpha + ")",
-    agent: "rgba(200, 240, 255, " + alpha + ")",
-    memory: "rgba(120, 230, 255, " + alpha + ")",
-    thread: "rgba(90, 210, 255, " + alpha + ")",
-    write: "rgba(100, 255, 220, " + alpha + ")",
-    source: "rgba(120, 220, 255, " + alpha + ")",
-    line: "rgba(160, 210, 255, " + alpha + ")",
-    ambient: "rgba(50, 140, 210, " + alpha + ")",
-    amber: "rgba(120, 230, 255, " + alpha + ")",
-    gold: "rgba(90, 210, 255, " + alpha + ")",
-    coral: "rgba(255, 100, 100, " + alpha + ")",
-    warm: "rgba(70, 190, 235, " + alpha + ")"
+    core: vizTint(230, 248, 255, alpha),
+    agent: vizTint(200, 240, 255, alpha),
+    memory: vizTint(120, 230, 255, alpha),
+    thread: vizTint(90, 210, 255, alpha),
+    write: vizTint(100, 255, 220, alpha),
+    source: vizTint(120, 220, 255, alpha),
+    line: vizTint(160, 210, 255, alpha),
+    ambient: vizTint(50, 140, 210, alpha),
+    amber: vizTint(120, 230, 255, alpha),
+    gold: vizTint(90, 210, 255, alpha),
+    coral: vizTint(255, 100, 100, alpha),
+    warm: vizTint(70, 190, 235, alpha)
   };
   return map[kind] || map.agent;
 }
@@ -1121,10 +1167,10 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   ctx.save();
   ctx.rotate(nebulaAngle);
   var nebula = ctx.createRadialGradient(0, 0, r * 0.02, 0, 0, r * 1.4);
-  nebula.addColorStop(0, "rgba(200, 240, 255, 0.2)");
-  nebula.addColorStop(0.12, "rgba(120, 230, 255, 0.1)");
-  nebula.addColorStop(0.25, "rgba(80, 200, 240, 0.045)");
-  nebula.addColorStop(0.55, "rgba(50, 150, 210, 0.02)");
+  nebula.addColorStop(0, vizTint(200, 240, 255, 0.2));
+  nebula.addColorStop(0.12, vizTint(120, 230, 255, 0.1));
+  nebula.addColorStop(0.25, vizTint(80, 200, 240, 0.045));
+  nebula.addColorStop(0.55, vizTint(50, 150, 210, 0.02));
   nebula.addColorStop(1, "rgba(3, 7, 14, 0)");
   ctx.fillStyle = nebula;
   ctx.beginPath();
@@ -1133,9 +1179,9 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   ctx.restore();
 
   var coreGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.26);
-  coreGlow.addColorStop(0, "rgba(230, 248, 255, 0.46)");
-  coreGlow.addColorStop(0.35, "rgba(140, 240, 255, 0.18)");
-  coreGlow.addColorStop(1, "rgba(100, 200, 255, 0)");
+  coreGlow.addColorStop(0, vizTint(230, 248, 255, 0.46));
+  coreGlow.addColorStop(0.35, vizTint(140, 240, 255, 0.18));
+  coreGlow.addColorStop(1, vizTint(100, 200, 255, 0));
   ctx.fillStyle = coreGlow;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.26, 0, Math.PI * 2);
@@ -1415,13 +1461,15 @@ function drawNeuralField() {
   var isZoomed = z > 0.7;
 
   var profile = motionProfile(brainState);
+  updateVizInterpolation();
   var contrast = CONTRAST_PRESETS[visualSettings.contrast] || CONTRAST_PRESETS.soft;
   var presence = activePresence();
   var stateIntensity = profile.intensity * presence * contrast.particle;
   var brightness = BRIGHTNESS_MULTIPLIER[visualSettings.brightness] || 1;
-  var globalBreath = (1 + Math.sin(time * (0.12 + profile.breathSpeed * 0.24)) * 0.03 + Math.sin(time * 0.37 + 1.2) * 0.02) * brightness;
+  var vizBreathMod = vizCurrentBreath;
+  var globalBreath = (1 + Math.sin(time * (0.12 + profile.breathSpeed * 0.24) * vizBreathMod) * 0.03 + Math.sin(time * 0.37 + 1.2) * 0.02) * brightness;
   var orbBreath = viewMode === "orb"
-    ? 1 + Math.sin(time * profile.breathSpeed * 0.72) * Math.max(0.058, profile.breathDepth) + Math.sin(time * 0.33 + 1.8) * 0.018
+    ? 1 + Math.sin(time * profile.breathSpeed * 0.72 * vizBreathMod) * Math.max(0.058, profile.breathDepth) + Math.sin(time * 0.33 + 1.8) * 0.018
     : 1;
   var baseFieldSize = Math.min(width, height) * (viewMode === "orb" ? 0.92 : 1);
   var fieldSize = baseFieldSize * orbBreath;
@@ -1820,6 +1868,12 @@ function applyAgentEvent(evt) {
   if (externalStateTimer) {
     window.clearTimeout(externalStateTimer);
     externalStateTimer = null;
+  }
+
+  if (type === "viz") {
+    if (evt.color) setVizColor(evt.color);
+    if (evt.breath) setVizBreath(evt.breath);
+    return; // Don't touch brainState
   }
 
   if (type === "session_start") {

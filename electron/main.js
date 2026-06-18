@@ -253,7 +253,23 @@ ipcMain.handle("claravision:sendMessage", async (_event, payload) => {
   currentHermesRun = null;
 
   if (result.ok) {
-    appendMessage("assistant", result.text, "done");
+    var cleanText = result.text;
+    // Extract <<viz:color=name,breath=name>> markers
+    var vizMatch = cleanText.match(/<<viz:([^>]*)>>/);
+    if (vizMatch) {
+      var params = vizMatch[1].split(",");
+      var vizEvent = {};
+      params.forEach(function (p) {
+        var kv = p.trim().split("=");
+        if (kv.length === 2) vizEvent[kv[0].trim()] = kv[1].trim();
+      });
+      if (Object.keys(vizEvent).length > 0) {
+        mainWindow?.webContents.send("claravision:agentEvent", { type: "viz", color: vizEvent.color, breath: vizEvent.breath });
+      }
+      // Strip the marker from displayed text
+      cleanText = cleanText.replace(/<<viz:[^>]*>>/g, "").trim();
+    }
+    appendMessage("assistant", cleanText, "done");
   } else if (result.status === "cancelled") {
     appendMessage("system", "已停止当前请求。", "cancelled");
   } else {
