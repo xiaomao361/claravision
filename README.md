@@ -136,6 +136,6 @@ npm run desktop:window
 | 分支 | 描述 | Tag |
 |------|------|-----|
 | `main` | 暖金活体脑核，原始版本 | - |
-| `sci-fi-ui` | 冷白蓝全息 + 雷达扫描 + 六边形框架 + 信号类型 + 扫描联动 + 数据标签 + 冲击波 + Hermes事件联动 | `v0.4-agent-bridge` |
+| `sci-fi-ui` | 冷白蓝全息 + 雷达扫描 + 六边形框架 + 信号类型 + 扫描联动 + 数据标签 + 冲击波 + Hermes事件联动 | `v0.4.1-agent-bridge-polish` |
 
 切换分支后需 `npm run desktop` 重新启动。
