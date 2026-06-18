@@ -522,13 +522,25 @@ function renderConversation() {
   list.scrollTop = list.scrollHeight;
 }
 
+// --- State priority system ---
+// hooks events are more precise than conversation status timers.
+// When hooks are active, conversation status defers to them.
+var hooksActive = false;
+var hooksSilenceTimer = null;
+
+function markHooksActive() {
+  hooksActive = true;
+  if (hooksSilenceTimer) window.clearTimeout(hooksSilenceTimer);
+  // If no hooks event for 10s, defer back to conversation status
+  hooksSilenceTimer = window.setTimeout(function () { hooksActive = false; }, 10000);
+}
+
 function applyConversationStatus(status) {
   conversation.status = status || conversation.status || "idle";
+  // If hooks are actively driving state, don't fight them
+  if (hooksActive && (status === "thinking" || status === "executing" || status === "busy")) return;
   if (status === "thinking") {
     setBrainState("thinking", true);
-    window.setTimeout(function () {
-      if (conversation.status === "thinking") setBrainState("executing", true);
-    }, 1500);
   } else if (status === "executing" || status === "busy") {
     setBrainState("executing", true);
   } else if (status === "done") {
@@ -1802,6 +1814,7 @@ function applyAgentEvent(evt) {
   if (!evt || !evt.type) return;
   var type = evt.type;
   var tool = evt.tool || "";
+  markHooksActive();
 
   // Clear any pending auto-revert
   if (externalStateTimer) {
