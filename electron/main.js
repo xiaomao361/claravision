@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, globalShortcut, ipcMain, screen } = require("electron");
 const path = require("path");
 const fs = require("fs/promises");
+const fsSync = require("fs");
 const hermesLara = require("./backend/hermes-lara");
 
 const APP_ROOT = path.resolve(__dirname, "..");
@@ -264,9 +265,58 @@ ipcMain.handle("claravision:sendMessage", async (_event, payload) => {
   return snapshot;
 });
 
+// --- ClaraVision agent event watcher ---
+const EVENTS_FILE = path.join(require("os").homedir(), ".hermes", "claravision-events.jsonl");
+let eventWatcher = null;
+let eventOffset = 0;
+
+function startEventWatcher() {
+  try {
+    if (fsSync.existsSync(EVENTS_FILE)) {
+      eventOffset = fsSync.statSync(EVENTS_FILE).size;
+    }
+  } catch (_e) {}
+
+  eventWatcher = fsSync.watch(EVENTS_FILE, { persistent: false }, () => {
+    readNewEvents();
+  });
+
+  // Fallback poll every 2s (fs.watch can miss on macOS)
+  setInterval(() => readNewEvents(), 2000);
+}
+
+function readNewEvents() {
+  try {
+    if (!fsSync.existsSync(EVENTS_FILE)) return;
+    const stat = fsSync.statSync(EVENTS_FILE);
+    if (stat.size <= eventOffset) return;
+
+    const fd = fsSync.openSync(EVENTS_FILE, "r");
+    const buf = Buffer.alloc(stat.size - eventOffset);
+    fsSync.readSync(fd, buf, 0, buf.length, eventOffset);
+    fsSync.closeSync(fd);
+    eventOffset = stat.size;
+
+    const lines = buf.toString("utf8").split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const evt = JSON.parse(trimmed);
+        mainWindow?.webContents.send("claravision:agentEvent", evt);
+      } catch (_e) {
+        // partial line, skip
+      }
+    }
+  } catch (_e) {
+    // file might not exist yet
+  }
+}
+
 app.whenReady().then(async () => {
   await loadSettings();
   createWindow();
+  startEventWatcher();
   globalShortcut.register("CommandOrControl+Shift+Space", () => {
     if (!mainWindow) return;
     if (mainWindow.isVisible()) {

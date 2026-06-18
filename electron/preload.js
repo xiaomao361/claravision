@@ -30,5 +30,9 @@ contextBridge.exposeInMainWorld("ClaraVisionBridge", {
   onConversation(callback) {
     if (typeof callback !== "function") return;
     ipcRenderer.on("claravision:conversation", (_event, payload) => callback(payload));
+  },
+  onAgentEvent(callback) {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("claravision:agentEvent", (_event, evt) => callback(evt));
   }
 });

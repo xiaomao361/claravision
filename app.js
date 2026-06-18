@@ -1789,7 +1789,47 @@ async function boot() {
   if (viewMode === "orb") setMouseInteractive(false);
   window.ClaraVisionBridge?.onCommand?.(handleCommand);
   window.ClaraVisionBridge?.onConversation?.(updateConversation);
+  window.ClaraVisionBridge?.onAgentEvent?.(applyAgentEvent);
   requestAnimationFrame(drawNeuralField);
+}
+
+// --- External agent event handling (Hermes hooks → ClaraVision) ---
+var externalStateTimer = null;
+
+function applyAgentEvent(evt) {
+  if (!evt || !evt.type) return;
+  var type = evt.type;
+  var tool = evt.tool || "";
+
+  // Clear any pending auto-revert
+  if (externalStateTimer) {
+    window.clearTimeout(externalStateTimer);
+    externalStateTimer = null;
+  }
+
+  if (type === "session_start") {
+    setBrainState("listening", true);
+    externalStateTimer = window.setTimeout(function () {
+      if (brainState === "listening") setBrainState("idle", false);
+    }, 4000);
+  } else if (type === "llm_start") {
+    setBrainState("thinking", true);
+  } else if (type === "llm_end") {
+    setBrainState("done", true);
+    externalStateTimer = window.setTimeout(function () {
+      if (brainState === "done") setBrainState("idle", false);
+    }, 2000);
+  } else if (type === "tool_start") {
+    // Memory tools → reading; others → executing
+    var memTools = ["mcp_memoria_memoria_recall", "mcp_memoria_memoria_store", "mcp_memoria_memoria_get", "memory", "session_search"];
+    var isMemory = memTools.some(function (t) { return tool.indexOf(t) >= 0; });
+    setBrainState(isMemory ? "reading" : "executing", true);
+  } else if (type === "tool_end") {
+    // Brief flash then back to thinking (llm likely still processing)
+    setBrainState("thinking", true);
+  } else if (type === "session_end") {
+    setBrainState("idle", false);
+  }
 }
 
 // --- Mouse / touch interaction ---
