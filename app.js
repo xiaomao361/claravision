@@ -2108,6 +2108,43 @@ $("#conversation-form").addEventListener("submit", function (event) {
 });
 $("#conversation-stop").addEventListener("click", cancelConversationMessage);
 $("#conversation-clear").addEventListener("click", clearConversation);
+
+// --- Conversation panel drag ---
+(function () {
+  var panel = $("#conversation-panel");
+  var head = $(".conversation-head");
+  if (!panel || !head) return;
+  var dragging = false;
+  var startX = 0, startY = 0, startRight = 0, startBottom = 0;
+
+  head.addEventListener("mousedown", function (e) {
+    if (e.target.closest("button")) return; // Don't drag on buttons
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    var style = window.getComputedStyle(panel);
+    startRight = parseInt(style.right) || 0;
+    startBottom = parseInt(style.bottom) || 0;
+    panel.style.transition = "none";
+    e.preventDefault();
+  });
+
+  window.addEventListener("mousemove", function (e) {
+    if (!dragging) return;
+    var dx = startX - e.clientX;
+    var dy = startY - e.clientY;
+    var maxRight = window.innerWidth - 280;
+    var maxBottom = window.innerHeight - 120;
+    panel.style.right = Math.max(0, Math.min(maxRight, startRight + dx)) + "px";
+    panel.style.bottom = Math.max(0, Math.min(maxBottom, startBottom + dy)) + "px";
+  });
+
+  window.addEventListener("mouseup", function () {
+    if (!dragging) return;
+    dragging = false;
+    panel.style.transition = "";
+  });
+})();
 $("#conversation-input").addEventListener("focus", function () {
   markInteraction();
   setMouseInteractive(true);

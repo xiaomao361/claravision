@@ -28,6 +28,7 @@ body {
 
 body {
   margin: 0;
+  -webkit-app-region: drag;
   background:
     radial-gradient(circle at 22% 12%, rgba(0, 212, 255, 0.1), transparent 32%),
     radial-gradient(circle at 82% 15%, rgba(0, 180, 220, 0.08), transparent 30%),
@@ -795,6 +796,12 @@ body.orb-mode[data-contrast="high"] {
   gap: 12px;
   padding: 10px 12px;
   border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+  cursor: grab;
+  user-select: none;
+}
+
+.conversation-head:active {
+  cursor: grabbing;
 }
 
 .conversation-head strong,
@@ -924,6 +931,7 @@ body.orb-mode[data-contrast="high"] {
   bottom: max(24px, env(safe-area-inset-bottom));
   width: min(360px, calc(100vw - 48px));
   border-color: transparent;
+  -webkit-app-region: no-drag;
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
