@@ -116,6 +116,15 @@ var vizCurrentColor = VIZ_COLORS.cyan.slice();
 var vizTargetBreath = 1.0;
 var vizCurrentBreath = 1.0;
 
+// Smooth breath transitions — prevent jarring size/speed jumps on state change
+var smoothBreathSpeed = 0.42;
+var smoothBreathDepth = 0.042;
+
+function updateSmoothBreath(targetSpeed, targetDepth) {
+  smoothBreathSpeed += (targetSpeed - smoothBreathSpeed) * 0.04;
+  smoothBreathDepth += (targetDepth - smoothBreathDepth) * 0.04;
+}
+
 function setVizColor(name) {
   var c = VIZ_COLORS[name];
   if (c) vizTargetColor = c.slice();
@@ -541,7 +550,11 @@ function renderConversation() {
   var activeStatus = ["thinking", "executing", "busy", "error"].includes(conversation.status);
   panel.classList.toggle("has-messages", conversation.messages.length > 0);
   panel.classList.toggle("is-active", conversationPinned || sendingMessage || activeStatus);
-  if (status) status.textContent = statusLabel(conversation.status);
+  if (status) {
+    status.textContent = statusLabel(conversation.status);
+    var isWorking = ["thinking", "executing", "busy"].includes(conversation.status);
+    status.classList.toggle("is-pulse", isWorking);
+  }
   if (send) send.disabled = sendingMessage;
   if (stop) stop.disabled = !sendingMessage;
 
@@ -1462,14 +1475,15 @@ function drawNeuralField() {
 
   var profile = motionProfile(brainState);
   updateVizInterpolation();
+  updateSmoothBreath(profile.breathSpeed, profile.breathDepth);
   var contrast = CONTRAST_PRESETS[visualSettings.contrast] || CONTRAST_PRESETS.soft;
   var presence = activePresence();
   var stateIntensity = profile.intensity * presence * contrast.particle;
   var brightness = BRIGHTNESS_MULTIPLIER[visualSettings.brightness] || 1;
   var vizBreathMod = vizCurrentBreath;
-  var globalBreath = (1 + Math.sin(time * (0.12 + profile.breathSpeed * 0.24) * vizBreathMod) * 0.03 + Math.sin(time * 0.37 + 1.2) * 0.02) * brightness;
+  var globalBreath = (1 + Math.sin(time * (0.12 + smoothBreathSpeed * 0.24) * vizBreathMod) * 0.03 + Math.sin(time * 0.37 + 1.2) * 0.02) * brightness;
   var orbBreath = viewMode === "orb"
-    ? 1 + Math.sin(time * profile.breathSpeed * 0.72 * vizBreathMod) * Math.max(0.058, profile.breathDepth) + Math.sin(time * 0.33 + 1.8) * 0.018
+    ? 1 + Math.sin(time * smoothBreathSpeed * 0.72 * vizBreathMod) * Math.max(0.058, smoothBreathDepth) + Math.sin(time * 0.33 + 1.8) * 0.018
     : 1;
   var baseFieldSize = Math.min(width, height) * (viewMode === "orb" ? 0.92 : 1);
   var fieldSize = baseFieldSize * orbBreath;
