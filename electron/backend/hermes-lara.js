@@ -1,176 +1,178 @@
 const { spawn } = require("child_process");
+const path = require("path");
+const readline = require("readline");
 
 const DEFAULT_TIMEOUT_MS = 180000;
-const DEFAULT_SESSION_NAME = "claravision-lara";
+const HERMES_PYTHON = path.join(
+  require("os").homedir(),
+  ".hermes/hermes-agent/venv/bin/python"
+);
+const AGENT_SCRIPT = path.join(__dirname, "claravision-agent.py");
 
-function buildPrompt({ message, history }) {
-  const recent = Array.isArray(history) ? history.slice(-8) : [];
-  const transcript = recent
-    .map((item) => {
-      const role = item.role === "assistant" ? "Lara" : "用户";
-      return `${role}: ${item.text || ""}`;
-    })
-    .join("\n");
+// --- Resident process management ---
+let agentProcess = null;
+let agentReady = false;
+let pendingResolve = null;
+let stdoutBuffer = [];
 
-  return [
-    "你是 Hermes 中的 Lara。你正在通过 ClaraVision 桌面脑核与用户连续对话。",
-    "请延续当前会话，直接回答用户。需要确认时，只问一个清楚的问题。",
-    "不要声称自己是 ClaraVision；ClaraVision 只是你的桌面外壳。",
-    "",
-    "## 视觉自我表达",
-    "你可以在回复中嵌入 <<viz:color=名称,breath=名称>> 来控制脑核的视觉状态。",
-    "这个标记用户看不到，会被自动剥离。放在回复开头或结尾均可。",
-    "",
-    "颜色选项（根据你当前在做什么选择）：",
-    "- cyan: 默认，平静工作",
-    "- deep-blue: 深度思考、分析",
-    "- amber: 执行命令、构建、写代码",
-    "- teal: 读取记忆、回忆",
-    "- purple: 忙碌，多工具并行，复杂任务",
-    "- red: 紧急、重要、出错",
-    "- warm-gold: 温暖陪伴模式",
-    "- ice-white: 安静、空闲、平和",
-    "",
-    "呼吸速度选项：",
-    "- slow: 安静、平和",
-    "- normal: 正常工作",
-    "- fast: 忙碌",
-    "- rapid: 紧急、高强度",
-    "",
-    "示例：<<viz:color=amber,breath=fast>>",
-    "不需要每次都加，只在觉得该变的时候加。不写就保持当前状态。",
-    transcript ? "\n最近对话：\n" + transcript : "",
-    "\n用户新输入：\n" + message
-  ].join("\n");
-}
+function ensureAgent() {
+  if (agentProcess && !agentProcess.killed) return Promise.resolve();
 
-function parseHermesOutput(stdout) {
-  const text = (stdout || "").trim();
-  if (!text) return "";
+  return new Promise((resolve, reject) => {
+    try {
+      agentProcess = spawn(HERMES_PYTHON, [AGENT_SCRIPT], {
+        cwd: process.env.CLARAVISION_HERMES_CWD || process.cwd(),
+        env: {
+          ...process.env,
+          HERMES_ACCEPT_HOOKS: process.env.HERMES_ACCEPT_HOOKS || "1",
+        },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
 
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+      const rl = readline.createInterface({
+        input: agentProcess.stdout,
+        crlfDelay: Infinity,
+      });
 
-  const filtered = lines.filter((line) => {
-    if (/^session[_ ]?id\s*[:=]/i.test(line)) return false;
-    if (/^session\s*[:=]/i.test(line)) return false;
-    return true;
-  });
+      rl.on("line", (line) => {
+        try {
+          const obj = JSON.parse(line);
+          // "ready" messages are status, not responses
+          if (obj.status === "ready") {
+            agentReady = true;
+            return;
+          }
+          // Response to a message
+          if (pendingResolve) {
+            const fn = pendingResolve;
+            pendingResolve = null;
+            fn(obj);
+          }
+        } catch (_e) {
+          // Non-JSON line, ignore
+        }
+      });
 
-  return filtered.join("\n").trim();
-}
+      agentProcess.on("error", (err) => {
+        agentProcess = null;
+        agentReady = false;
+        reject(err);
+      });
 
-function runHermes(args, timeoutMs) {
-  let child = null;
-  let timeout = null;
+      agentProcess.on("close", (code) => {
+        agentProcess = null;
+        agentReady = false;
+        if (pendingResolve) {
+          const fn = pendingResolve;
+          pendingResolve = null;
+          fn({
+            ok: false,
+            status: "error",
+            text: "",
+            error: `Agent process exited (code ${code})`,
+          });
+        }
+      });
 
-  const promise = new Promise((resolve) => {
-    let stdout = "";
-    let stderr = "";
-    let settled = false;
-
-    function finish(result) {
-      if (settled) return;
-      settled = true;
-      if (timeout) clearTimeout(timeout);
-      resolve(result);
+      // Wait a moment for the process to start
+      setTimeout(() => resolve(), 500);
+    } catch (err) {
+      reject(err);
     }
-
-    child = spawn("Hermes", args, {
-      cwd: process.env.CLARAVISION_HERMES_CWD || process.cwd(),
-      env: {
-        ...process.env,
-        HERMES_ACCEPT_HOOKS: process.env.HERMES_ACCEPT_HOOKS || "1"
-      },
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on("error", (error) => {
-      finish({ ok: false, status: "error", text: "", error: error.message, stderr });
-    });
-
-    child.on("close", (code, signal) => {
-      if (signal === "SIGTERM") {
-        finish({ ok: false, status: "cancelled", text: "", error: "cancelled", stderr });
-        return;
-      }
-      const text = parseHermesOutput(stdout);
-      if (code === 0 && text) {
-        finish({ ok: true, status: "done", text, raw: stdout, stderr });
-      } else if (code === 0) {
-        finish({ ok: false, status: "empty", text: "", error: "Hermes returned no text", raw: stdout, stderr });
-      } else {
-        finish({ ok: false, status: "error", text, error: stderr.trim() || text || `Hermes exited with code ${code}`, raw: stdout, stderr });
-      }
-    });
-
-    timeout = setTimeout(() => {
-      if (child && !child.killed) child.kill("SIGTERM");
-      finish({ ok: false, status: "timeout", text: "", error: "Hermes timed out", stderr });
-    }, timeoutMs);
   });
-
-  return {
-    promise,
-    cancel() {
-      if (child && !child.killed) child.kill("SIGTERM");
-    }
-  };
 }
 
-function baseArgs(prompt) {
-  return [
-    "chat",
-    "-q",
-    prompt,
-    "--quiet",
-    "--source",
-    "tool"
-  ];
-}
-
-function sendMessage({ message, history, sessionName = DEFAULT_SESSION_NAME, timeoutMs = DEFAULT_TIMEOUT_MS }) {
+function sendMessage({
+  message,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+}) {
   if (!message || !message.trim()) {
     return {
-      promise: Promise.resolve({ ok: false, status: "empty", text: "", error: "empty message" }),
-      cancel() {}
+      promise: Promise.resolve({
+        ok: false,
+        status: "empty",
+        text: "",
+        error: "empty message",
+      }),
+      cancel() {},
     };
   }
 
-  const prompt = buildPrompt({ message: message.trim(), history });
-  const first = runHermes([...baseArgs(prompt), "--continue", sessionName], timeoutMs);
-  let active = first;
-  const promise = first.promise.then((result) => {
-    const combined = `${result.error || ""}\n${result.text || ""}\n${result.stderr || ""}`;
-    if (!result.ok && /No session found matching/i.test(combined)) {
-      active = runHermes(baseArgs(prompt), timeoutMs);
-      return active.promise;
+  const promise = (async () => {
+    await ensureAgent();
+    if (!agentProcess || agentProcess.killed) {
+      return {
+        ok: false,
+        status: "error",
+        text: "",
+        error: "Agent process not available",
+      };
     }
-    return result;
-  });
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let timer = null;
+
+      function finish(result) {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        pendingResolve = null;
+        resolve(result);
+      }
+
+      pendingResolve = finish;
+
+      // Write message to agent stdin
+      try {
+        agentProcess.stdin.write(
+          JSON.stringify({ message: message.trim() }) + "\n"
+        );
+      } catch (err) {
+        finish({
+          ok: false,
+          status: "error",
+          text: "",
+          error: err.message,
+        });
+        return;
+      }
+
+      timer = setTimeout(() => {
+        finish({
+          ok: false,
+          status: "timeout",
+          text: "",
+          error: "Agent timed out",
+        });
+      }, timeoutMs);
+    });
+  })();
 
   return {
     promise,
     cancel() {
-      active.cancel();
-    }
+      // Can't kill the resident process for one cancel.
+      // Just let it finish and ignore the result.
+      if (pendingResolve) {
+        const fn = pendingResolve;
+        pendingResolve = null;
+        fn({ ok: false, status: "cancelled", text: "", error: "cancelled" });
+      }
+    },
   };
 }
 
+// Graceful shutdown
+function killAgent() {
+  if (agentProcess && !agentProcess.killed) {
+    agentProcess.kill("SIGTERM");
+    agentProcess = null;
+    agentReady = false;
+  }
+}
+
 module.exports = {
-  DEFAULT_SESSION_NAME,
-  baseArgs,
-  buildPrompt,
-  parseHermesOutput,
-  sendMessage
+  sendMessage,
+  killAgent,
 };

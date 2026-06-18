@@ -243,9 +243,7 @@ ipcMain.handle("claravision:sendMessage", async (_event, payload) => {
   mainWindow?.webContents.send("claravision:conversation", conversationSnapshot("thinking"));
 
   const run = hermesLara.sendMessage({
-    message,
-    history: conversation.messages.slice(0, -1),
-    sessionName: conversation.sessionId
+    message
   });
   currentHermesRun = run;
 
@@ -353,6 +351,7 @@ app.whenReady().then(async () => {
 
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
+  hermesLara.killAgent();
 });
 
 app.on("window-all-closed", () => {
