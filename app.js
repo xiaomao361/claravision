@@ -100,6 +100,7 @@ var selectedNode = null;
 var selectedCluster = null;
 var pointer = { x: 0, y: 0 };
 var brainState = "idle";
+var shockwave = null; // { startTime, color, duration }
 var stateStartedAt = 0;
 var userStateOverride = null;
 var visualSettings = {
@@ -388,9 +389,14 @@ function resetView() {
 
 function setBrainState(nextState, manual) {
   if (!STATE_DURATIONS[nextState]) return;
+  var prevState = brainState;
   brainState = nextState;
   stateStartedAt = neuralScene ? neuralScene.frame : 0;
   userStateOverride = manual ? nextState : null;
+  if (prevState !== nextState) {
+    var swColors = { idle: "100,180,220", reading: "120,200,255", thinking: "140,230,255", executing: "255,200,120", done: "120,255,180", error: "255,120,120", listening: "200,150,255", waiting: "80,150,200" };
+    shockwave = { startTime: neuralScene ? neuralScene.frame : 0, color: swColors[nextState] || "140,230,255", duration: 50 };
+  }
   markInteraction();
 }
 
@@ -991,7 +997,7 @@ function buildNeuralScene(nextState) {
     });
   }
 
-  return { nodes: nodes, links: links, pulses: pulses, signalEvents: signalEvents, frame: 0, memoryCount: (nextState.memories || []).length };
+  return { nodes: nodes, links: links, pulses: pulses, signalEvents: signalEvents, frame: 0, memoryCount: (nextState.memories || []).length, agentCount: agents.length, threadCount: threads.length };
 }
 
 // --- Color system (sci-fi cyan holographic palette) ---
@@ -1187,6 +1193,37 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   }
   ctx.closePath();
   ctx.stroke();
+
+  // Rotating data labels
+  if (zoom > 0.5) {
+    var dataRot = time * 0.08;
+    var labelFR = r * 1.15;
+    var memC = neuralScene ? (neuralScene.memoryCount || 0) : 0;
+    var agtC = neuralScene ? (neuralScene.agentCount || 0) : 0;
+    var thrC = neuralScene ? (neuralScene.threadCount || 0) : 0;
+    var stateLabel = STATE_LABELS[brainState] || "ON";
+    var dataItems = [
+      { text: "MEM:" + memC, angle: 0 },
+      { text: "THR:" + thrC, angle: Math.PI * 0.5 },
+      { text: "AGT:" + agtC, angle: Math.PI },
+      { text: "STA:" + stateLabel, angle: Math.PI * 1.5 }
+    ];
+    ctx.font = "7px 'SF Mono', Monaco, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (var di2 = 0; di2 < dataItems.length; di2++) {
+      var dl = dataItems[di2];
+      var da2 = dataRot + dl.angle;
+      ctx.fillStyle = "rgba(120, 230, 255, " + (0.16 + zoom * 0.04) + ")";
+      ctx.fillText(dl.text, Math.cos(da2) * labelFR, Math.sin(da2) * labelFR);
+      ctx.strokeStyle = "rgba(100, 220, 255, " + (0.08 + zoom * 0.03) + ")";
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(da2) * r * 1.02, Math.sin(da2) * r * 1.02);
+      ctx.lineTo(Math.cos(da2) * r * 1.1, Math.sin(da2) * r * 1.1);
+      ctx.stroke();
+    }
+  }
 
   if (viewMode === "orb") {
     ctx.strokeStyle = "rgba(140, 225, 255, 0.045)";
@@ -1400,6 +1437,24 @@ function drawNeuralField() {
     ctx.fillRect(0, 0, width, height);
   }
   drawBrainShell(ctx, width, height, time, z * orbBreath * (brainState === "thinking" ? 1.02 : 1) * contrast.core, visualCx, visualCy, baseFieldSize);
+
+  // State transition shockwave
+  if (shockwave) {
+    var swElapsed = neuralScene.frame - shockwave.startTime;
+    if (swElapsed < shockwave.duration) {
+      var swProgress = swElapsed / shockwave.duration;
+      var swR = swProgress * baseFieldSize * 0.55 * z;
+      var swAlpha = (1 - swProgress) * 0.3;
+      ctx.strokeStyle = "rgba(" + shockwave.color + "," + swAlpha + ")";
+      ctx.lineWidth = 2 * (1 - swProgress * 0.5);
+      ctx.beginPath();
+      ctx.arc(visualCx, visualCy, swR, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      shockwave = null;
+    }
+  }
+
   drawStateRays(ctx, visualCx, visualCy, baseFieldSize * z, time, stateIntensity * brightness, brainState);
 
   // Think pulse
@@ -1597,6 +1652,13 @@ function drawNeuralField() {
       Math.sin(time * 3.3 + dn.phase * 1.7) * 0.05;
     breath *= globalBreath;
     var r = dn.size * breath * z;
+    // Radar sweep illumination — nodes near sweep angle brighten
+    var _radarAng = time * 0.35;
+    var _nodeAng = Math.atan2(dn.py - cy, dn.px - cx);
+    var _angDiff = _nodeAng - _radarAng;
+    _angDiff = Math.atan2(Math.sin(_angDiff), Math.cos(_angDiff));
+    var sweepGlow = Math.abs(_angDiff) < 0.3 ? (1 - Math.abs(_angDiff) / 0.3) : 0;
+    r *= (1 + sweepGlow * 0.22);
     var isFocused = selectedNode && selectedNode.id === dn.id;
     var isHovered = hoveredNode && hoveredNode.id === dn.id;
     var inCluster = selectedCluster && dn.kind === "memory" && dn.sourceAgent === selectedCluster.sourceAgent;
@@ -1618,7 +1680,7 @@ function drawNeuralField() {
     // --- Non-ambient: holo shape ---
     var dim = selectedCluster && !inCluster && !isCore && !isFocused ? 0.32 : 1;
     if (privateShadow) dim *= 0.38;
-    var fillAlpha = (isCore ? 0.9 : 0.8) * dim * stateIntensity;
+    var fillAlpha = (isCore ? 0.9 : 0.8) * dim * stateIntensity + sweepGlow * 0.22;
     var haloAlpha = (isCore ? 0.25 : 0.14) * dim * stateIntensity;
     ctx.fillStyle = colorFor(dn.kind, fillAlpha * breath);
     ctx.strokeStyle = colorFor(dn.kind, Math.min(1, fillAlpha + 0.15) * breath);
@@ -1631,6 +1693,15 @@ function drawNeuralField() {
       ctx.beginPath();
       ctx.arc(dn.px, dn.py, r * 1.8, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // Radar sweep glow ring
+    if (sweepGlow > 0.15 && !isCore) {
+      ctx.strokeStyle = "rgba(180, 245, 255, " + (sweepGlow * 0.35) + ")";
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.arc(dn.px, dn.py, r * (1.6 + sweepGlow * 0.4), 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     if (isFocused || isHovered || inCluster) {
