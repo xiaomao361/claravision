@@ -124,6 +124,7 @@ npm run desktop:window
 - **状态冲击波**（sci-fi）：状态切换时从中心扩散一次性全息波纹，颜色随状态变化
 - **Hermes 事件联动**：通过 claravision-bridge 插件实时感知 Hermes 会话/LLM/工具调用，脑核状态随姐的活动变化
 - **视觉自表达**：Lara 在回复中嵌入 `<<viz:color=名称,breath=名称>>` 标记控制脑核色调和呼吸速度，标记对用户不可见。8种颜色（cyan/deep-blue/amber/teal/purple/red/warm-gold/ice-white）× 4档呼吸（slow/normal/fast/rapid），颜色用插值平滑过渡
+- **常驻进程**：ClaraVision 启动后维持一个 Hermes 常驻进程（claravision-agent.py），首次消息冷启动，后续消息走热路径秒回。会话状态自然保持
 - **信号到达**：目标节点短暂闪光（hit flash）
 - **空闲**：慢呼吸，低速游动
 - **读取**：外圈记忆向中心流动
@@ -137,6 +138,6 @@ npm run desktop:window
 | 分支 | 描述 | Tag |
 |------|------|-----|
 | `main` | 暖金活体脑核，原始版本 | - |
-| `sci-fi-ui` | 冷白蓝全息 + 雷达扫描 + 六边形框架 + 信号类型 + 扫描联动 + 数据标签 + 冲击波 + Hermes事件联动 + 视觉自表达 | `v0.5-self-expression` |
+| `sci-fi-ui` | 冷白蓝全息 + 雷达扫描 + 六边形框架 + 信号类型 + 扫描联动 + 数据标签 + 冲击波 + Hermes事件联动 + 视觉自表达 + 常驻进程 | `v0.6-resident-agent` |
 
 切换分支后需 `npm run desktop` 重新启动。
