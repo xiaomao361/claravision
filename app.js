@@ -1963,7 +1963,6 @@ function setupInteraction() {
   // Drag pan
   canvas.addEventListener("mousedown", function (e) {
     markInteraction();
-    if (viewMode === "orb") return;
     isDragging = true;
     dragMoved = false;
     dragStart.x = e.clientX;
@@ -1975,11 +1974,6 @@ function setupInteraction() {
 
   window.addEventListener("mousemove", function (e) {
     if (!isDragging) return;
-    if (viewMode === "orb") {
-      isDragging = false;
-      canvas.style.cursor = "";
-      return;
-    }
     var dx = (e.clientX - dragStart.x) / (cameraTarget.zoom || 0.5);
     var dy = (e.clientY - dragStart.y) / (cameraTarget.zoom || 0.5);
     if (Math.abs(e.clientX - dragStart.x) > 4 || Math.abs(e.clientY - dragStart.y) > 4) {
