@@ -1457,15 +1457,17 @@ function drawNeuralField() {
 
   drawStateRays(ctx, visualCx, visualCy, baseFieldSize * z, time, stateIntensity * brightness, brainState);
 
-  // Think pulse
-  var thinkPhase = (neuralScene.frame % 155) / 155;
-  if (thinkPhase < 0.5 && (viewMode !== "orb" || brainState !== "idle")) {
-    var thinkR = thinkPhase * fieldSize * 0.5 * z;
-    var thinkAlpha = (1 - thinkPhase / 0.5) * 0.12 * globalBreath;
-    ctx.fillStyle = "rgba(140, 230, 255, " + (thinkAlpha * 0.3) + ")";
-    ctx.beginPath();
-    ctx.arc(visualCx, visualCy, thinkR, 0, Math.PI * 2);
-    ctx.fill();
+  // Think pulse — smooth sinusoidal breathing, no hard cut
+  if (viewMode !== "orb" || brainState !== "idle") {
+    var thinkWave = Math.sin(time * 0.9);
+    var thinkR = (0.5 + thinkWave * 0.35) * fieldSize * 0.5 * z;
+    var thinkAlpha = Math.max(0, thinkWave) * 0.04 * globalBreath;
+    if (thinkAlpha > 0.001) {
+      ctx.fillStyle = "rgba(140, 230, 255, " + thinkAlpha + ")";
+      ctx.beginPath();
+      ctx.arc(visualCx, visualCy, thinkR, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   drawSwirlSparks(ctx, width, height, time, z * orbBreath, neuralScene.memoryCount || 0, visualCx, visualCy, baseFieldSize, stateIntensity * brightness);
