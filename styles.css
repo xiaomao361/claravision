@@ -667,8 +667,7 @@ body.orb-mode[data-contrast="high"] {
 .orb-mode .topbar,
 .orb-mode .focus-panel,
 .orb-mode .activity-panel {
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
 
 .orb-mode .lower-grid {
@@ -676,9 +675,11 @@ body.orb-mode[data-contrast="high"] {
 }
 
 .orb-mode .stage-header {
+  position: absolute;
   top: 18px;
   left: 18px;
   opacity: 0.08;
+  gap: 8px;
 }
 
 .orb-mode .stage-header:hover,
@@ -717,7 +718,7 @@ body.orb-mode[data-contrast="high"] {
 .orb-mode .neural-readout {
   left: 18px;
   bottom: 18px;
-  opacity: 0.12;
+  opacity: 0.1;
   transition: opacity 160ms ease;
 }
 
@@ -726,9 +727,32 @@ body.orb-mode[data-contrast="high"] {
 }
 
 .orb-mode .neural-readout span {
+  min-height: 26px;
+  padding: 4px 10px;
+  border-radius: 2px;
   border-color: var(--orb-line, rgba(0, 212, 255, 0.14));
   background: var(--orb-panel, rgba(4, 3, 2, 0.28));
   color: var(--orb-text, rgba(180, 225, 255, 0.8));
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+
+.orb-mode .icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 2px;
+  border-color: var(--orb-line, rgba(100, 220, 255, 0.18));
+  background: linear-gradient(135deg, rgba(90, 220, 255, 0.08), rgba(2, 8, 16, 0.18));
+  color: var(--orb-text, rgba(190, 235, 255, 0.78));
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  box-shadow: inset 0 0 18px rgba(70, 205, 255, 0.04);
+}
+
+.orb-mode .icon-button:hover,
+.orb-mode .icon-button:focus-visible {
+  outline: 0;
+  border-color: rgba(160, 242, 255, 0.62);
+  background: linear-gradient(135deg, rgba(90, 220, 255, 0.18), rgba(2, 8, 16, 0.34));
+  box-shadow: inset 0 0 22px rgba(70, 205, 255, 0.09), 0 0 18px rgba(70, 205, 255, 0.12);
 }
 
 .node-tooltip {
@@ -945,6 +969,7 @@ body.orb-mode[data-contrast="high"] {
 }
 
 .orb-mode .conversation-panel:not(:hover):not(:focus-within):not(.is-active) .conversation-form {
+  position: relative;
   padding: 0;
   border-top: 0;
 }
@@ -952,15 +977,34 @@ body.orb-mode[data-contrast="high"] {
 .orb-mode .conversation-panel:not(:hover):not(:focus-within):not(.is-active) .conversation-form textarea {
   height: 34px;
   min-height: 34px;
+  padding-left: 34px;
+  border-radius: 2px;
   background: var(--orb-panel, rgba(2, 6, 14, 0.18));
   border-color: var(--orb-line, rgba(0, 212, 255, 0.12));
   color: var(--orb-text, rgba(180, 225, 255, 0.8));
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
 }
 
 .orb-mode .conversation-panel:not(:hover):not(:focus-within):not(.is-active) .conversation-form button {
   height: 34px;
+  border-radius: 2px;
   background: rgba(0, 212, 255, 0.1);
   color: var(--orb-text, rgba(180, 225, 255, 0.8));
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.orb-mode .conversation-panel:not(:hover):not(:focus-within):not(.is-active) .conversation-form::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 13px;
+  z-index: 1;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(155, 240, 255, 0.55);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(80, 220, 255, 0.45);
+  animation: commandPulse 2.8s ease-in-out infinite;
 }
 
 .orb-mode .conversation-panel:hover,
@@ -977,6 +1021,18 @@ body.orb-mode[data-contrast="high"] {
 .orb-mode[data-contrast="high"] .conversation-panel:focus-within,
 .orb-mode[data-contrast="high"] .conversation-panel.is-active {
   box-shadow: 0 18px 56px rgba(0, 0, 0, 0.44), 0 0 58px rgba(0, 220, 255, 0.22);
+}
+
+@keyframes commandPulse {
+  0%, 100% { opacity: 0.32; transform: scale(0.82); }
+  50% { opacity: 0.92; transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-mode .conversation-panel:not(:hover):not(:focus-within):not(.is-active) .conversation-form::before,
+  #conversation-status.is-pulse {
+    animation: none;
+  }
 }
 
 /* === Sci-Fi HUD Overlay === */

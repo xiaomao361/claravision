@@ -159,9 +159,10 @@ var shockwave = null; // { startTime, color, duration }
 var stateStartedAt = 0;
 var userStateOverride = null;
 var visualSettings = {
+  version: 2,
   size: "medium",
   brightness: "normal",
-  contrast: "high"
+  contrast: "soft"
 };
 var mouseInteractive = false;
 var lastInteractionFrame = 0;
@@ -195,9 +196,9 @@ var STATE_DURATIONS = {
   waiting: 420
 };
 var SIZE_ZOOM = {
-  small: 0.68,
-  medium: 0.86,
-  large: 1.04
+  small: 0.5,
+  medium: 0.68,
+  large: 0.86
 };
 var BRIGHTNESS_MULTIPLIER = {
   low: 0.68,
@@ -308,7 +309,10 @@ function loadVisualSettings() {
     var stored = JSON.parse(window.localStorage.getItem("claravision:visualSettings") || "{}");
     if (stored.size && SIZE_ZOOM[stored.size]) visualSettings.size = stored.size;
     if (stored.brightness && BRIGHTNESS_MULTIPLIER[stored.brightness]) visualSettings.brightness = stored.brightness;
-    if (stored.contrast && CONTRAST_PRESETS[stored.contrast]) visualSettings.contrast = stored.contrast;
+    if (stored.contrast && CONTRAST_PRESETS[stored.contrast]) {
+      visualSettings.contrast = !stored.version && stored.contrast === "high" ? "soft" : stored.contrast;
+    }
+    if (stored.version !== visualSettings.version) saveVisualSettings();
   } catch (_error) {
     // Non-critical.
   }
@@ -1050,7 +1054,8 @@ function buildNeuralScene(nextState) {
   });
 
   // --- Ambient spiral particles ---
-  var targetParticleCount = Math.min(1800, 620 + Math.floor(((nextState.memories || []).length) * 2.05));
+  var particleCeiling = viewMode === "orb" ? 900 : 1300;
+  var targetParticleCount = Math.min(particleCeiling, 460 + Math.floor(((nextState.memories || []).length) * 1.12));
   while (nodes.length < targetParticleCount) {
     var ambId = "ambient-" + nodes.length;
     var ring = seeded(ambId);
@@ -1337,6 +1342,224 @@ function drawBrainShell(ctx, width, height, time, zoom, centerX, centerY, fieldS
   ctx.restore();
 }
 
+function drawLivingCore(ctx, centerX, centerY, fieldSize, time, zoom, intensity) {
+  var coreR = fieldSize * 0.034 * zoom;
+  var beat = 1 + Math.sin(time * 1.35) * 0.1 + Math.sin(time * 3.1 + 0.8) * 0.035;
+  var r = coreR * beat;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  var glow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, r * 7.4);
+  glow.addColorStop(0, vizTint(245, 253, 255, 0.94 * intensity));
+  glow.addColorStop(0.08, vizTint(190, 245, 255, 0.68 * intensity));
+  glow.addColorStop(0.28, vizTint(70, 205, 245, 0.2 * intensity));
+  glow.addColorStop(0.62, vizTint(30, 130, 210, 0.055 * intensity));
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, r * 7.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  for (var ray = 0; ray < 28; ray += 1) {
+    var seed = seeded("core-ray-" + ray);
+    var angle = ray / 28 * Math.PI * 2 + time * (ray % 2 ? 0.08 : -0.055);
+    var inner = r * (0.72 + seed * 0.45);
+    var outer = r * (2.5 + seed * 3.8) * (0.78 + Math.sin(time * 1.7 + seed * 8) * 0.22);
+    var alpha = (0.025 + seed * 0.075) * intensity;
+    var rayGradient = ctx.createLinearGradient(
+      centerX + Math.cos(angle) * inner,
+      centerY + Math.sin(angle) * inner,
+      centerX + Math.cos(angle) * outer,
+      centerY + Math.sin(angle) * outer
+    );
+    rayGradient.addColorStop(0, vizTint(220, 250, 255, alpha * 2.2));
+    rayGradient.addColorStop(1, "rgba(100,220,255,0)");
+    ctx.strokeStyle = rayGradient;
+    ctx.lineWidth = 0.5 + seed * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner);
+    ctx.lineTo(centerX + Math.cos(angle) * outer, centerY + Math.sin(angle) * outer);
+    ctx.stroke();
+  }
+
+  for (var shell = 0; shell < 4; shell += 1) {
+    var shellR = r * (1.05 + shell * 0.52);
+    var shellAngle = time * (shell % 2 ? -0.32 : 0.4) + shell * 1.3;
+    ctx.strokeStyle = vizTint(170, 242, 255, (0.34 - shell * 0.055) * intensity);
+    ctx.lineWidth = shell === 0 ? 1.4 : 0.7;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, shellR, shellAngle, shellAngle + Math.PI * (0.9 + shell * 0.16));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, shellR, shellAngle + Math.PI * 1.15, shellAngle + Math.PI * 1.72);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = vizTint(245, 253, 255, Math.min(1, 0.88 * intensity));
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, r * 0.72, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawOrganicFilaments(ctx, centerX, centerY, fieldSize, time, zoom, intensity) {
+  var branches = 22;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+
+  for (var i = 0; i < branches; i += 1) {
+    var seed = seeded("living-filament-" + i);
+    var baseAngle = i / branches * Math.PI * 2 + (seed - 0.5) * 0.34 + time * (i % 2 ? 0.012 : -0.009);
+    var startR = fieldSize * (0.055 + seed * 0.04) * zoom;
+    var endR = fieldSize * (0.27 + seed * 0.16) * zoom;
+    var curl = (seeded("living-curl-" + i) - 0.5) * 1.55;
+    var sx = centerX + Math.cos(baseAngle) * startR;
+    var sy = centerY + Math.sin(baseAngle) * startR;
+    var ex = centerX + Math.cos(baseAngle + curl * 0.34) * endR;
+    var ey = centerY + Math.sin(baseAngle + curl * 0.34) * endR;
+    var midR = (startR + endR) * 0.56;
+    var c1x = centerX + Math.cos(baseAngle + curl * 0.1) * midR;
+    var c1y = centerY + Math.sin(baseAngle + curl * 0.1) * midR;
+    var c2x = centerX + Math.cos(baseAngle + curl * 0.24) * endR * 0.78;
+    var c2y = centerY + Math.sin(baseAngle + curl * 0.24) * endR * 0.78;
+    var pulse = 0.55 + Math.sin(time * 1.1 + seed * 9) * 0.22;
+    var alpha = (0.018 + seed * 0.035) * intensity * pulse;
+
+    ctx.strokeStyle = vizTint(80, 205, 245, alpha);
+    ctx.lineWidth = 0.45 + seed * 0.7;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
+    ctx.stroke();
+
+    if (i % 3 === 0) {
+      var forkAngle = baseAngle + curl * 0.34 + (i % 2 ? 0.24 : -0.24);
+      var forkR = endR * (1.08 + seed * 0.18);
+      ctx.strokeStyle = vizTint(100, 220, 255, alpha * 0.72);
+      ctx.lineWidth *= 0.65;
+      ctx.beginPath();
+      ctx.moveTo(c2x, c2y);
+      ctx.quadraticCurveTo(ex, ey, centerX + Math.cos(forkAngle) * forkR, centerY + Math.sin(forkAngle) * forkR);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawCinematicAtmosphere(ctx, width, height, centerX, centerY, fieldSize, time, zoom, intensity) {
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  var horizontalGlow = ctx.createLinearGradient(centerX - fieldSize * 0.34, centerY, centerX + fieldSize * 0.34, centerY);
+  horizontalGlow.addColorStop(0, "rgba(60,180,235,0)");
+  horizontalGlow.addColorStop(0.42, vizTint(120, 225, 255, 0.018 * intensity));
+  horizontalGlow.addColorStop(0.5, vizTint(220, 250, 255, 0.11 * intensity));
+  horizontalGlow.addColorStop(0.58, vizTint(120, 225, 255, 0.018 * intensity));
+  horizontalGlow.addColorStop(1, "rgba(60,180,235,0)");
+  ctx.fillStyle = horizontalGlow;
+  ctx.fillRect(centerX - fieldSize * 0.34, centerY - 1.2 * zoom, fieldSize * 0.68, 2.4 * zoom);
+
+  for (var mote = 0; mote < 72; mote += 1) {
+    var seed = seeded("cinematic-mote-" + mote);
+    var angle = seed * Math.PI * 2 + time * (0.012 + seeded("mote-speed-" + mote) * 0.018);
+    var radius = fieldSize * (0.08 + seeded("mote-radius-" + mote) * 0.46) * zoom;
+    var drift = Math.sin(time * 0.17 + seed * 10) * fieldSize * 0.012;
+    var x = centerX + Math.cos(angle) * radius + Math.sin(angle * 1.7) * drift;
+    var y = centerY + Math.sin(angle) * radius * 0.86 + Math.cos(angle * 1.3) * drift;
+    var alpha = (0.018 + seed * 0.05) * intensity;
+    ctx.fillStyle = vizTint(90, 205, 245, alpha);
+    ctx.beginPath();
+    ctx.arc(x, y, (0.28 + seed * 0.75) * zoom, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  if (viewMode === "orb") {
+    var vignette = ctx.createRadialGradient(centerX, centerY, fieldSize * 0.2, centerX, centerY, fieldSize * 0.69);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(0.72, "rgba(0,4,10,0.018)");
+    vignette.addColorStop(1, "rgba(0,2,8,0.11)");
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
+  }
+}
+
+function drawStateSignature(ctx, centerX, centerY, fieldSize, time, zoom, intensity, state) {
+  var baseR = fieldSize * 0.095 * zoom;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+
+  if (state === "listening") {
+    for (var wave = 0; wave < 4; wave += 1) {
+      var wavePhase = (time * 0.28 + wave * 0.24) % 1;
+      ctx.strokeStyle = vizTint(120, 235, 255, (1 - wavePhase) * 0.12 * intensity);
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, baseR * (1 + wavePhase * 2.5), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else if (state === "reading") {
+    for (var inbound = 0; inbound < 10; inbound += 1) {
+      var inSeed = seeded("reading-signature-" + inbound);
+      var inAngle = inbound / 10 * Math.PI * 2 + time * -0.18;
+      var inProgress = (time * 0.35 + inSeed) % 1;
+      var inRadius = baseR * (3.2 - inProgress * 2.15);
+      ctx.fillStyle = vizTint(120, 235, 255, (0.06 + inProgress * 0.2) * intensity);
+      ctx.beginPath();
+      ctx.arc(centerX + Math.cos(inAngle) * inRadius, centerY + Math.sin(inAngle) * inRadius, (0.7 + inProgress * 1.1) * zoom, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (state === "thinking") {
+    for (var lobe = 0; lobe < 6; lobe += 1) {
+      var lobeAngle = lobe / 6 * Math.PI * 2 + time * 0.22;
+      ctx.strokeStyle = vizTint(165, 240, 255, 0.13 * intensity);
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.ellipse(
+        centerX + Math.cos(lobeAngle) * baseR * 0.35,
+        centerY + Math.sin(lobeAngle) * baseR * 0.35,
+        baseR * 1.5,
+        baseR * 0.36,
+        lobeAngle,
+        0,
+        Math.PI * 2
+      );
+      ctx.stroke();
+    }
+  } else if (state === "executing") {
+    var segmentCount = 18;
+    for (var segment = 0; segment < segmentCount; segment += 1) {
+      var segAngle = segment / segmentCount * Math.PI * 2 + time * 0.42;
+      var segHot = (segment + Math.floor(time * 8)) % segmentCount < 5;
+      ctx.strokeStyle = vizTint(100, 255, 220, (segHot ? 0.3 : 0.06) * intensity);
+      ctx.lineWidth = segHot ? 1.8 : 0.7;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, baseR * 1.65, segAngle, segAngle + 0.16);
+      ctx.stroke();
+    }
+  } else if (state === "done") {
+    var donePhase = (time * 0.55) % 1;
+    ctx.strokeStyle = vizTint(190, 255, 235, (1 - donePhase) * 0.28 * intensity);
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, baseR * (1 + donePhase * 2.6), 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (state === "error") {
+    for (var fault = 0; fault < 5; fault += 1) {
+      var faultAngle = seeded("fault-" + fault) * Math.PI * 2 + Math.sin(time * 2.8 + fault) * 0.08;
+      ctx.strokeStyle = "rgba(255,80,90," + (0.1 + 0.08 * Math.sin(time * 4 + fault)) * intensity + ")";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, baseR * (1.15 + fault * 0.18), faultAngle, faultAngle + 0.42);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 function drawStateRays(ctx, centerX, centerY, fieldSize, time, intensity, state) {
   if (state === "idle") return;
   var rays = state === "thinking" ? 18 : 12;
@@ -1379,7 +1602,7 @@ function drawSwirlSparks(ctx, width, height, time, zoom, memoryCount, centerX, c
   var field = fieldSize || Math.min(width, height);
   var density = Math.min(1, memoryCount / 520);
   var arms = 7;
-  var sparksPerArm = Math.min(210, 112 + Math.floor(memoryCount / 7));
+  var sparksPerArm = Math.min(138, 76 + Math.floor(memoryCount / 10));
   var state = brainState;
   var stateBoost = state === "thinking" ? 1.35 : state === "reading" ? 1.14 : 0.82;
   var flowDirection = state === "reading" ? -1 : 1;
@@ -1388,7 +1611,8 @@ function drawSwirlSparks(ctx, width, height, time, zoom, memoryCount, centerX, c
   ctx.globalCompositeOperation = "lighter";
   for (var arm = 0; arm < arms; arm += 1) {
     var armPhase = arm * ((Math.PI * 2) / arms) + time * flowDirection * (0.08 + arm * 0.004 + stateIntensity * 0.03);
-    for (var i = 0; i < sparksPerArm; i += 1) {
+    var sparkStep = state === "idle" && viewMode === "orb" ? 2 : 1;
+    for (var i = 0; i < sparksPerArm; i += sparkStep) {
       var t = i / sparksPerArm;
       var seed = seeded("swirl-" + arm + "-" + i);
       var flow = state === "reading" ? (t - (time * 0.13 + seed) % 0.18) : t;
@@ -1401,8 +1625,9 @@ function drawSwirlSparks(ctx, width, height, time, zoom, memoryCount, centerX, c
       var x = cx + Math.cos(angle) * (radius + jitter);
       var y = cy + Math.sin(angle) * (radius + jitter * 0.7);
       var hotBand = Math.max(0, 1 - Math.abs(clippedT - (state === "thinking" ? 0.22 : 0.34)) * 3.1);
-      var alpha = (0.06 + hotBand * 0.38 + (1 - clippedT) * 0.08) * density * stateBoost;
-      var size = (0.45 + seed * 1.45 + hotBand * 1.6) * zoom * (state === "idle" ? 0.9 : 1);
+      var cloudBand = 0.46 + Math.sin(clippedT * 18 + arm * 1.9) * 0.28;
+      var alpha = (0.035 + hotBand * 0.31 + (1 - clippedT) * 0.06) * density * stateBoost * cloudBand;
+      var size = (0.32 + seed * 1.05 + hotBand * 1.25) * zoom * (state === "idle" ? 0.9 : 1);
       ctx.fillStyle = "rgba(140, " + Math.floor(220 + hotBand * 35) + ", 255, " + alpha + ")";
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
@@ -1434,14 +1659,26 @@ function activePresence() {
 }
 
 // --- Main neural field render (optimized) ---
+function scheduleNextFrame() {
+  if (renderPaused || document.hidden) {
+    window.setTimeout(function () { requestAnimationFrame(drawNeuralField); }, 120);
+  } else if (brainState === "idle" && viewMode === "orb") {
+    window.setTimeout(function () { requestAnimationFrame(drawNeuralField); }, 32);
+  } else {
+    window.setTimeout(function () { requestAnimationFrame(drawNeuralField); }, 16);
+  }
+}
+
 function drawNeuralField() {
   var canvas = $("#neural-canvas");
   if (!canvas || !neuralScene) return;
 
   var rect = canvas.getBoundingClientRect();
-  var scale = window.devicePixelRatio || 1;
+  var nativeScale = window.devicePixelRatio || 1;
   var width = Math.max(1, Math.floor(rect.width));
   var height = Math.max(1, Math.floor(rect.height));
+  var pixelBudgetScale = Math.sqrt(820000 / Math.max(1, width * height));
+  var scale = Math.max(0.82, Math.min(nativeScale, 1.1, pixelBudgetScale));
 
   if (canvas.width !== width * scale || canvas.height !== height * scale) {
     canvas.width = width * scale;
@@ -1457,7 +1694,7 @@ function drawNeuralField() {
   camera.zoom += (cameraTarget.zoom - camera.zoom) * 0.12;
 
   if (renderPaused || document.hidden) {
-    requestAnimationFrame(drawNeuralField);
+    scheduleNextFrame();
     return;
   }
   neuralScene.frame += 1;
@@ -1495,8 +1732,9 @@ function drawNeuralField() {
   if (viewMode === "orb") {
     ctx.clearRect(0, 0, width, height);
     var shade = ctx.createRadialGradient(visualCx, visualCy, 0, visualCx, visualCy, baseFieldSize * 0.68 * z);
-    shade.addColorStop(0, "rgba(0, 0, 0, " + (contrast.shade * 0.42 * presence) + ")");
-    shade.addColorStop(0.54, "rgba(0, 0, 0, " + (contrast.shade * 0.3 * presence) + ")");
+    shade.addColorStop(0, "rgba(0, 4, 10, " + (contrast.shade * 1.18 * presence) + ")");
+    shade.addColorStop(0.54, "rgba(0, 5, 12, " + (contrast.shade * 0.82 * presence) + ")");
+    shade.addColorStop(0.82, "rgba(0, 3, 8, " + (contrast.shade * 0.28 * presence) + ")");
     shade.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.fillStyle = shade;
     ctx.fillRect(0, 0, width, height);
@@ -1530,6 +1768,8 @@ function drawNeuralField() {
   }
 
   drawStateRays(ctx, visualCx, visualCy, baseFieldSize * z, time, stateIntensity * brightness, brainState);
+  drawOrganicFilaments(ctx, visualCx, visualCy, baseFieldSize, time, z * orbBreath, stateIntensity * 0.9);
+  drawCinematicAtmosphere(ctx, width, height, visualCx, visualCy, baseFieldSize, time, z * orbBreath, stateIntensity * 0.75);
 
   // Think pulse — smooth sinusoidal breathing, no hard cut
   if (viewMode !== "orb" || brainState !== "idle") {
@@ -1550,6 +1790,9 @@ function drawNeuralField() {
   var nodes = neuralScene.nodes;
   for (var ni = 0; ni < nodes.length; ni++) {
     var n = nodes[ni];
+    if (brainState === "idle" && viewMode === "orb" && n.kind === "ambient" && n.px !== undefined && ni % 3 !== neuralScene.frame % 3) {
+      continue;
+    }
     var nx = n.x;
     var ny = n.y;
     if (n.orbitAngle !== undefined && n.orbitRadius !== undefined) {
@@ -1592,7 +1835,9 @@ function drawNeuralField() {
     neuralScene._ambNodes = ambNodes;
   }
   if (z > 0.5 && ambNodes.length > 1) {
-    var pairCount = Math.min(300, ambNodes.length * 2);
+    var pairCount = brainState === "idle" && viewMode === "orb"
+      ? Math.min(72, ambNodes.length)
+      : Math.min(140, ambNodes.length);
     var ambThresh = 58 * z;
     for (var ap = 0; ap < pairCount; ap++) {
       var ia = Math.floor(seeded("a" + ap + neuralScene.frame) * ambNodes.length);
@@ -1637,7 +1882,8 @@ function drawNeuralField() {
 
   // --- Signal events ---
   var sigs = neuralScene.signalEvents;
-  for (var si = 0; si < sigs.length; si++) {
+  var signalLimit = brainState === "idle" && viewMode === "orb" ? Math.min(44, sigs.length) : sigs.length;
+  for (var si = 0; si < signalLimit; si++) {
     var evt = sigs[si];
     var signalBoost = profile.signal;
     var style = evt.style || "";
@@ -1727,7 +1973,10 @@ function drawNeuralField() {
       Math.sin(time * 1.6 + dn.phase) * 0.08 +
       Math.sin(time * 3.3 + dn.phase * 1.7) * 0.05;
     breath *= globalBreath;
-    var r = dn.size * breath * z;
+    var radialDistance = Math.hypot(dn.px - visualCx, dn.py - visualCy) / Math.max(1, baseFieldSize * 0.48 * z);
+    var depthVariation = 0.68 + seeded("node-depth-" + dn.id) * 0.58;
+    var edgeFade = radialDistance > 0.72 ? Math.max(0.36, 1 - (radialDistance - 0.72) * 1.15) : 1;
+    var r = dn.size * breath * z * depthVariation;
     // Radar sweep illumination — nodes near sweep angle brighten
     var _radarAng = time * 0.35;
     var _nodeAng = Math.atan2(dn.py - cy, dn.px - cx);
@@ -1756,7 +2005,8 @@ function drawNeuralField() {
     // --- Non-ambient: holo shape ---
     var dim = selectedCluster && !inCluster && !isCore && !isFocused ? 0.32 : 1;
     if (privateShadow) dim *= 0.38;
-    var fillAlpha = (isCore ? 0.9 : 0.8) * dim * stateIntensity + sweepGlow * 0.22;
+    var fillAlpha = (isCore ? 0.9 : 0.72) * dim * stateIntensity * edgeFade + sweepGlow * 0.22;
+    fillAlpha = Math.min(isCore ? 1 : 0.74, fillAlpha);
     var haloAlpha = (isCore ? 0.25 : 0.14) * dim * stateIntensity;
     ctx.fillStyle = colorFor(dn.kind, fillAlpha * breath);
     ctx.strokeStyle = colorFor(dn.kind, Math.min(1, fillAlpha + 0.15) * breath);
@@ -1810,6 +2060,9 @@ function drawNeuralField() {
     }
   }
 
+  drawLivingCore(ctx, visualCx, visualCy, baseFieldSize, time, z * orbBreath, Math.min(1.35, stateIntensity * 0.82));
+  drawStateSignature(ctx, visualCx, visualCy, baseFieldSize, time, z * orbBreath, stateIntensity, brainState);
+
   // Zoom indicator
   if (viewMode !== "orb") {
     ctx.fillStyle = "rgba(140, 230, 255, 0.35)";
@@ -1829,7 +2082,7 @@ function drawNeuralField() {
     ctx.stroke();
   }
 
-  requestAnimationFrame(drawNeuralField);
+  scheduleNextFrame();
 }
 
 function renderNeuralField() {
@@ -1866,7 +2119,7 @@ async function boot() {
   window.ClaraVisionBridge?.onCommand?.(handleCommand);
   window.ClaraVisionBridge?.onConversation?.(updateConversation);
   window.ClaraVisionBridge?.onAgentEvent?.(applyAgentEvent);
-  requestAnimationFrame(drawNeuralField);
+  scheduleNextFrame();
 }
 
 // --- External agent event handling (Hermes hooks → ClaraVision) ---
